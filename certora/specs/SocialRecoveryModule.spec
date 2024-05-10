@@ -3,12 +3,11 @@ using SafeHarness as safeContract;
 methods {
     // Safe Functions
     function safeContract.isModuleEnabled(address) external returns (bool) envfree;
-    function safeContract.disableModule(address, address) external;
 }
 
 // A setup function that requires Safe contract to enabled the Social Recovery
 // Module.
-function setupRequireRecoveryModule() {
+function requireSocialRecoveryModuleEnabled() {
     require(safeContract.isModuleEnabled(currentContract));
 }
 
@@ -18,10 +17,10 @@ rule recoveryModuleCanBeDisabled {
     env e;
     address prevModule;
 
-    setupRequireRecoveryModule();
+    requireSocialRecoveryModuleEnabled();
 
     safeContract.disableModule@withrevert(e, prevModule, currentContract);
     bool isReverted = lastReverted;
 
-    assert isReverted || (!isReverted && !safeContract.isModuleEnabled(currentContract));
+    assert !isReverted => !isReverted && !safeContract.isModuleEnabled(currentContract);
 }
