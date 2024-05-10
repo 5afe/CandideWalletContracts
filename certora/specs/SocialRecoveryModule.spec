@@ -18,7 +18,7 @@ rule recoveryModuleCanBeDisabled {
     env e;
     address prevModule;
 
-    setupRequireSafeTokenInvariants();
+    setupRequireRecoveryModule();
 
     safeContract.disableModule@withrevert(e, prevModule, currentContract);
     bool isReverted = lastReverted;
