@@ -16,6 +16,7 @@
  */
 
 using SafeHarness as safeContract;
+using SocialRecoveryModule as socialRecoveryModule;
 
 methods {
     // Safe Functions
@@ -55,7 +56,8 @@ persistent ghost address NULL {
     axiom to_mathint(NULL) == 0;
 }
 
-invariant thresholdSet(address wallet) threshold(wallet) > 0  && threshold(wallet) <= ghostOwnerCount[wallet]
+// threshold can be 0 in case on Guardian is set for a wallet.
+invariant thresholdSet(address wallet) threshold(wallet) <= ghostOwnerCount[wallet]
     {
         preserved {
             requireInvariant reach_null(wallet);
@@ -105,7 +107,7 @@ invariant reach_null(address wallet)
 
 // every element that is reachable from another element is either the null pointer or part of the list.
 invariant reachableInList(address wallet)
-    (forall address Z. forall address X. forall address Y. reach(X, Y) => X == Y || Y == 0 || ghostOwners[Z][Y] != 0)
+    (forall address X. forall address Y. reach(X, Y) => X == Y || Y == 0 || ghostOwners[wallet][Y] != 0)
     {
         preserved {
             requireInvariant reach_invariant(wallet);
@@ -164,7 +166,7 @@ invariant reachHeadNext(address wallet)
 
 // every element reaches its direct successor (except for the tail-SENTINEL).
 invariant reach_next(address wallet)
-    forall address Y. forall address X. reach_succ(X, ghostOwners[Y][X])
+    forall address X. reach_succ(X, ghostOwners[wallet][X])
     {
         preserved {
             requireInvariant inListReachable(wallet);
@@ -272,7 +274,7 @@ invariant count_correct(address wallet)
 invariant ownercount_correct(address wallet)
     ghostSuccCount(SENTINEL) == ghostOwnerCount[wallet] + 1
     {
-        preserved  {
+        preserved {
             requireInvariant reach_invariant(wallet);
             requireInvariant reach_null(wallet);
             requireInvariant inListReachable(wallet);
@@ -287,63 +289,62 @@ invariant ownercount_correct(address wallet)
 
 rule isGuardianDoesNotRevert {
     address addr;
-    address wallet;
-    isGuardian@withrevert(wallet, addr);
+    isGuardian@withrevert(safeContract, addr);
     assert !lastReverted, "isGuardian should not revert";
 }
 
 rule isGuardianNotSelfOrSentinal {
     address addr;
-    address wallet;
     require addr == currentContract || addr == SENTINEL;
-    requireInvariant self_not_owner(wallet);
-    bool result = isGuardian(wallet, addr);
+    requireInvariant self_not_owner(safeContract);
+    bool result = isGuardian(safeContract, addr);
     assert result == false, "currentContract or SENTINEL must not be guardian";
 }
 
 rule isGuardianInList {
     address addr;
-    address wallet;
+    env e;
+    require safeContract.isModuleEnabled(e.msg.sender);
     require addr != SENTINEL;
-    bool result = isGuardian(wallet, addr);
-    assert result == (ghostOwners[wallet][addr] != NULL), "isGuardian returns wrong result";
+    bool result = isGuardian(safeContract, addr);
+    assert result == (ghostOwners[safeContract][addr] != NULL), "isGuardian returns wrong result";
 }
 
 rule addGuardianChangesEntries {
     address other;
-    address wallet;
     address toAdd;
     uint256 threshold;
     env e;
+    require safeContract.isModuleEnabled(e.msg.sender);
 
-    requireInvariant reach_null(wallet);
-    requireInvariant reach_invariant(wallet);
-    requireInvariant inListReachable(wallet);
-    requireInvariant reachableInList(wallet);
+    requireInvariant reach_null(safeContract);
+    requireInvariant reach_invariant(safeContract);
+    requireInvariant inListReachable(safeContract);
+    requireInvariant reachableInList(safeContract);
     require other != toAdd;
-    bool isGuardianOtherBefore = isGuardian(wallet, other);
-    addGuardian(e, wallet, toAdd);
+    bool isGuardianOtherBefore = isGuardian(safeContract, other);
+    addGuardian(e, safeContract, toAdd);
 
-    assert isGuardian(wallet, toAdd), "addOwner should add the given owner";
-    assert isGuardian(wallet, other) == isGuardianOtherBefore, "addOwner should not remove or add other owners";
+    assert isGuardian(safeContract, toAdd), "addOwner should add the given owner";
+    assert isGuardian(safeContract, other) == isGuardianOtherBefore, "addOwner should not remove or add other owners";
 }
 
 rule removeGuardianChangesOwners {
     address other;
-    address wallet;
     address toRemove;
     address prevOwner;
     uint256 threshold;
     env e;
+    require safeContract.isModuleEnabled(e.msg.sender);
 
-    requireInvariant reach_null(wallet);
-    requireInvariant reach_invariant(wallet);
-    requireInvariant inListReachable(wallet);
-    requireInvariant reachableInList(wallet);
+    requireInvariant reach_null(safeContract);
+    requireInvariant reach_invariant(safeContract);
+    requireInvariant inListReachable(safeContract);
+    requireInvariant reachableInList(safeContract);
     require other != toRemove;
-    bool isGuardianOtherBefore = isGuardian(wallet, other);
-    revokeGuardian(e, wallet, prevOwner, toRemove);
+    bool isGuardianOtherBefore = isGuardian(safeContract, other);
+    revokeGuardian(e, safeContract, prevOwner, toRemove);
 
-    assert !isGuardian(wallet, toRemove), "revokeGuardian should remove the given guardian";
-    assert isGuardian(wallet,other) == isGuardianOtherBefore, "revokeGuardian should not remove or add other guardians";
+    assert !isGuardian(safeContract, toRemove), "revokeGuardian should remove the given guardian";
+    assert isGuardian(safeContract, åother) == isGuardianOtherBefore, "revokeGuardian should not remove or add other guardians";
 }
