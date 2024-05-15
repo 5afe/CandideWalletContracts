@@ -91,9 +91,6 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
 // This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
 rule addGuardiansRevertIfDuplicateGuardian(env e, address guardian, uint256 threshold) {
 
-    // This can be removed once linked list invariant is implemented.
-    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
-
     require currentContract.isGuardian(safeContract, guardian);
 
     currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
@@ -104,9 +101,9 @@ rule addGuardiansRevertIfDuplicateGuardian(env e, address guardian, uint256 thre
 
 // This integrity rule verifies that the revokeGuardianWithThreshold(...) if executes ensures that
 // the Social Recovery Module is enabled, the caller to the Module has to be the Safe Contract, the
-// guardian is removed from the guardian list, the linked list integrity remains and no other account
+// guardian is revoked from the guardian list, the linked list integrity remains and no other account
 // (guardian or not) is affected.
-rule removeGuardiansWorksAsExpected(env e, address guardian, address prevGuardian, uint256 threshold, address otherAccount) {
+rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardian, uint256 threshold, address otherAccount) {
 
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
 
@@ -134,8 +131,8 @@ rule removeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     assert currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
 }
 
-// This integrity rule verifies that the guardian can always be removed considering ideal conditions.
-rule guardianCanAlwaysBeRemoved(env e, address guardian, address prevGuardian, uint256 threshold) {
+// This integrity rule verifies that the guardian can always be revoked considering ideal conditions.
+rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, uint256 threshold) {
 
     requireSocialRecoveryModuleEnabled();
 
@@ -159,4 +156,15 @@ rule guardianCanAlwaysBeRemoved(env e, address guardian, address prevGuardian, u
     assert !isReverted &&
         guardianStorageContract.entries[safeContract].guardians[prevGuardian] == nextGuardian &&
         !currentContract.isGuardian(safeContract, guardian);
+}
+
+// This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
+rule revokeGuardianRevertIfAddressNotGuardian(env e, address otherAccount, address prevGuardian, uint256 threshold) {
+
+    require !currentContract.isGuardian(safeContract, otherAccount);
+
+    currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, otherAccount, threshold);
+    bool isReverted = lastReverted;
+
+    assert lastReverted;
 }
