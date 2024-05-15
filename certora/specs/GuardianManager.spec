@@ -139,8 +139,8 @@ invariant reach_invariant(address wallet)
 
 // every element with non-zero owner field is reachable from SENTINEL (head of the list)
 invariant inListReachable(address wallet)
-    forall address Y. ghostOwners[Y][SENTINEL] != 0 &&
-    (forall address key. ghostOwners[Y][key] != 0 => reach(SENTINEL, key))
+    ghostOwners[wallet][SENTINEL] != 0 &&
+    (forall address key. ghostOwners[wallet][key] != 0 => reach(SENTINEL, key))
     {
         preserved {
             requireInvariant thresholdSet(wallet);
@@ -215,7 +215,7 @@ hook Sstore currentContract.entries[KEY address wallet].guardians[KEY address ke
     havoc reach assuming updateSucc(key, next_or_null(value));
     mathint countDiff = count_expected(wallet, key) - ghostSuccCount(key);
     havoc ghostSuccCount assuming updateGhostSuccCount(key, countDiff);
-    assert reach_succ(someKey, ghostOwners[key][someKey]), "reach_succ violated after owners update";
+    assert reach_succ(someKey, ghostOwners[wallet][someKey]), "reach_succ violated after owners update";
     assert ghostSuccCount(someKey) == count_expected(wallet, someKey);
 }
 
