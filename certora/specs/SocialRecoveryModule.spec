@@ -46,7 +46,7 @@ rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, addr
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
 
     // This can be removed once linked list invariant is implemented.
-    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 
     require guardian != otherAccount;
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
@@ -70,7 +70,7 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     require guardianStorageContract.entries[safeContract].count < max_uint256; // To prevent overflow (Realistically can't reach).
 
     // This can be removed once linked list invariant is implemented.
-    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 
     require guardian != 0;
     require guardian != SENTINEL();
@@ -115,9 +115,7 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
 
     // This could be removed once linked list invariant is implemented.
     // <------------------------------------------------------------>
-    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
-    require guardian != prevGuardian;
-    require guardian != nextGuardian;
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
     require prevGuardian != nextGuardian;
     // <------------------------------------------------------------>
 
@@ -143,7 +141,7 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
     require guardianStorageContract.entries[safeContract].count > threshold;
 
     // This can be removed once linked list invariant is implemented.
-    require guardianStorageContract.entries[safeContract].count > 0 && guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
     require prevGuardian != nextGuardian;
