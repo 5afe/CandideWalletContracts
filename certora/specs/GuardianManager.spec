@@ -346,5 +346,5 @@ rule removeGuardianChangesOwners {
     revokeGuardian(e, safeContract, prevOwner, toRemove);
 
     assert !isGuardian(safeContract, toRemove), "revokeGuardian should remove the given guardian";
-    assert isGuardian(safeContract, åother) == isGuardianOtherBefore, "revokeGuardian should not remove or add other guardians";
+    assert isGuardian(safeContract, other) == isGuardianOtherBefore, "revokeGuardian should not remove or add other guardians";
 }
