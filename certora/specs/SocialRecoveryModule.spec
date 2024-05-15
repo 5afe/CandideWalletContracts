@@ -43,6 +43,8 @@ function requireSocialRecoveryModuleEnabled() {
 // the new guardian is added to the guardian list, and no other account (guardian or not) is affected.
 rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, address otherAccount) {
 
+    uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
+
     // This can be removed once linked list invariant is implemented.
     require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
 
@@ -55,20 +57,7 @@ rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, addr
     assert e.msg.sender == safeContract;
     assert currentContract.isGuardian(safeContract, guardian);
     assert otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
-}
-
-// This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
-rule addGuardiansRevertIfDuplicateGuardian(env e, address guardian, uint256 threshold) {
-
-    // This can be removed once linked list invariant is implemented.
-    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
-
-    require currentContract.isGuardian(safeContract, guardian);
-
-    currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
-    bool isReverted = lastReverted;
-
-    assert lastReverted;
+    assert currentGuardiansCount + 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
 }
 
 // This integrity rule verifies that the guardian can always be added considering ideal conditions.
@@ -99,6 +88,20 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     assert !isReverted && currentContract.isGuardian(safeContract, guardian);
 }
 
+// This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
+rule addGuardiansRevertIfDuplicateGuardian(env e, address guardian, uint256 threshold) {
+
+    // This can be removed once linked list invariant is implemented.
+    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
+
+    require currentContract.isGuardian(safeContract, guardian);
+
+    currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
+    bool isReverted = lastReverted;
+
+    assert lastReverted;
+}
+
 // This integrity rule verifies that the revokeGuardianWithThreshold(...) if executes ensures that
 // the Social Recovery Module is enabled, the caller to the Module has to be the Safe Contract, the
 // guardian is removed from the guardian list, the linked list integrity remains and no other account
@@ -109,6 +112,9 @@ rule removeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
 
     require guardian != otherAccount;
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
+
+    uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
+    require currentGuardiansCount > 0;
 
     // This could be removed once linked list invariant is implemented.
     // <------------------------------------------------------------>
@@ -125,6 +131,7 @@ rule removeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     assert !currentContract.isGuardian(safeContract, guardian);
     assert guardianStorageContract.entries[safeContract].guardians[prevGuardian] == nextGuardian;
     assert otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
+    assert currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
 }
 
 // This integrity rule verifies that the guardian can always be removed considering ideal conditions.
