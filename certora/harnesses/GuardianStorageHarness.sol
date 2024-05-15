@@ -5,11 +5,12 @@ import {GuardianStorage} from "../../contracts/modules/social_recovery/storage/G
 contract GuardianStorageHarness is GuardianStorage {
 
     /**
-     * @dev Gets the count of guaridans for a wallet.
+     * @notice Gets the count of guaridans for a wallet based on the actual linked list.
+     * @dev This is needed for FV to avoid cases where we have values which does not start with SENTINEL.
      * @param _wallet The target wallet.
      * @return count of guardians.
      */
-    function getGuardiansCount(address _wallet) public view returns (uint256 count) {
+    function countGuardians(address _wallet) public view returns (uint256 count) {
         GuardianStorageEntry storage entry = entries[_wallet];
         if (entry.count == 0 || entry.guardians[SENTINEL_GUARDIANS] == SENTINEL_GUARDIANS || entry.guardians[SENTINEL_GUARDIANS] == address(0)) {
             return 0;
