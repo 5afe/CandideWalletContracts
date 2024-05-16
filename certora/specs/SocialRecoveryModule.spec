@@ -67,6 +67,15 @@ rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, addr
 }
 
 // This integrity rule verifies that the guardian can always be added considering ideal conditions.
+// Some of the conditions are:
+// - No value should be sent with the transaction.
+// - The threshold should be greater than 0. We can't have guardian(s) with a threshold of 0.
+// - The guardian count should be less than the maximum value to prevent overflow.
+// - The guardian should not be values such as zero, sentinel, or the Safe contract itself.
+// - The guardian should not be an owner of the Safe contract at the time of addition.
+// - The guardian should not be already added as a guardian.
+// - The threshold should be less than or equal to the total number of guardians.
+// - Safe contract should be the sender of the transaction.
 rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     requireSocialRecoveryModuleEnabled();
 
@@ -148,6 +157,13 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
 }
 
 // This integrity rule verifies that the guardian can always be revoked considering ideal conditions.
+// Some of the conditions are:
+// - No value should be sent with the transaction.
+// - Guardian should not be zero address.
+// - New threshold should be greater than 0.
+// - The guardian count should be greater than the new threshold.
+// - The address should be a guardian.
+// - Safe Contract should be the sender of the transaction.
 rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, uint256 threshold) {
     requireSocialRecoveryModuleEnabled();
 
