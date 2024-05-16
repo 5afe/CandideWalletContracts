@@ -92,12 +92,31 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
 }
 
 // This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
-rule addGuardiansRevertIfDuplicateGuardian(env e, address guardian, uint256 threshold) {
+rule addGuardianRevertIfDuplicateGuardian(env e, address guardian, uint256 threshold) {
     bool isGuardian = currentContract.isGuardian(safeContract, guardian);
 
     currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
 
     assert isGuardian => lastReverted;
+}
+
+// This integrity rule verifies that the addition of a new guardian can revert due to different reasons even if the address is not a guardian.
+rule addGuardianCanRevertEvenIfAddressIsNotGuardian(env e, address otherAccount, uint256 threshold) {
+    bool isNotGuardian = !currentContract.isGuardian(safeContract, otherAccount);
+
+    currentContract.addGuardianWithThreshold@withrevert(e, safeContract, otherAccount, threshold);
+
+    assert isNotGuardian && lastReverted =>
+        e.msg.sender != safeContract ||
+        e.msg.value != 0 ||
+        otherAccount == 0 ||
+        otherAccount == SENTINEL() ||
+        otherAccount == safeContract ||
+        safeContract.isOwner(otherAccount) ||
+        threshold == 0 ||
+        threshold >= guardianStorageContract.entries[safeContract].count ||
+        guardianStorageContract.entries[safeContract].count == max_uint256 ||
+        !safeContract.isModuleEnabled(currentContract);
 }
 
 // This integrity rule verifies that if the revokeGuardianWithThreshold(...) executes, then ensure that:
@@ -152,11 +171,29 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
         !currentContract.isGuardian(safeContract, guardian);
 }
 
-// This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
+// This integrity rule verifies that the revocation of an address always reverts if the address is not a guardian.
 rule revokeGuardianRevertIfAddressNotGuardian(env e, address otherAccount, address prevGuardian, uint256 threshold) {
     bool isNotGuardian = !currentContract.isGuardian(safeContract, otherAccount);
 
     currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, otherAccount, threshold);
 
     assert isNotGuardian => lastReverted;
+}
+
+// This integrity rule verifies that the revocation of an address can revert due to different reasons even if the address is a guardian.
+rule revokeGuardianCanRevertEvenIfAddressIsGuardian(env e, address otherAccount, address prevGuardian, uint256 threshold) {
+    bool isGuardian = currentContract.isGuardian(safeContract, otherAccount);
+
+    currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, otherAccount, threshold);
+
+    assert isGuardian && lastReverted =>
+        e.msg.sender != safeContract ||
+        e.msg.value != 0 ||
+        otherAccount == 0 ||
+        otherAccount == SENTINEL() ||
+        threshold == 0 ||
+        guardianStorageContract.entries[safeContract].count == 0 ||
+        threshold >= guardianStorageContract.entries[safeContract].count ||
+        !safeContract.isModuleEnabled(currentContract) ||
+        guardianStorageContract.entries[safeContract].guardians[prevGuardian] != otherAccount;
 }
