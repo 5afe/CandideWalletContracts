@@ -17,7 +17,7 @@ contract GuardianStorageHarness is GuardianStorage {
         }
 
         address currentGuardian = entry.guardians[SENTINEL_GUARDIANS];
-        while (currentGuardian != SENTINEL_GUARDIANS) {
+        while (currentGuardian != SENTINEL_GUARDIANS && currentGuardian != address(0)) {
             currentGuardian = entry.guardians[currentGuardian];
             count++;
         }
