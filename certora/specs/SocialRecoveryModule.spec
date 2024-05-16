@@ -21,31 +21,38 @@ methods {
     function _.isOwner(address owner) external => sumarizeSafeIsOwner(calledContract, owner) expect bool ALL;
 }
 
-// A summary function to check if a module is enabled in the Safe contract.
+// A summary function that asserts that all `ISafe.isModuleEnabled` calls are done
+// to the `safeContract`, returning the same result as `safeContract.isModuleEnabled(...)`.
 function safeIsModuleEnabled(address callee, address module) returns bool {
     assert callee == safeContract;
     return safeContract.isModuleEnabled(module);
 }
 
-// A summary function to check if an address is an owner in the Safe contract.
+// A summary function that asserts that all `ISafe.isOwner` calls are done
+// to the `safeContract`, returning the same result as `safeContract.isOwner(...)`.
 function sumarizeSafeIsOwner(address callee, address owner) returns bool {
     assert callee == safeContract;
     return safeContract.isOwner(owner);
 }
 
-// A setup function that requires Safe contract to enabled the Social Recovery Module.
+// A setup function that requires Safe contract to enable the Social Recovery Module.
 function requireSocialRecoveryModuleEnabled() {
     require(safeContract.isModuleEnabled(currentContract));
 }
 
-// This integrity rule verifies that the addGuardianWithThreshold(...) if executes ensures that
-// the Social Recovery Module is enabled, the caller to the Module has to be the Safe Contract,
-// the new guardian is added to the guardian list, and no other account (guardian or not) is affected.
-rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, address otherAccount) {
+function requireGuardiansLinkedListIntegrity() {
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
+}
 
+// This integrity rule verifies that if the addGuardianWithThreshold(...) executes, then ensure that:
+// - the Social Recovery Module is enabled
+// - the caller to the Module has to be the Safe Contract
+// - the new guardian is added to the guardian list,
+// - and no other account (guardian or not) is affected.
+rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, address otherAccount) {
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
 
-    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
+    requireGuardiansLinkedListIntegrity();
 
     require guardian != otherAccount;
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
@@ -61,13 +68,12 @@ rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, addr
 
 // This integrity rule verifies that the guardian can always be added considering ideal conditions.
 rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
-
     requireSocialRecoveryModuleEnabled();
 
     require e.msg.value == 0;
     require threshold > 0;
     require guardianStorageContract.entries[safeContract].count < max_uint256; // To prevent overflow (Realistically can't reach).
-    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
+    requireGuardiansLinkedListIntegrity();
 
     require guardian != 0;
     require guardian != SENTINEL();
@@ -76,7 +82,7 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     require !safeContract.isOwner(guardian);
     require !currentContract.isGuardian(safeContract, guardian);
 
-    require threshold < guardianStorageContract.countGuardians(safeContract);
+    require threshold <= guardianStorageContract.countGuardians(safeContract);
 
     require e.msg.sender == safeContract;
     currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
@@ -87,21 +93,20 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
 
 // This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
 rule addGuardiansRevertIfDuplicateGuardian(env e, address guardian, uint256 threshold) {
-
-    require currentContract.isGuardian(safeContract, guardian);
+    bool isGuardian = currentContract.isGuardian(safeContract, guardian);
 
     currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
-    bool isReverted = lastReverted;
 
-    assert lastReverted;
+    assert isGuardian => lastReverted;
 }
 
-// This integrity rule verifies that the revokeGuardianWithThreshold(...) if executes ensures that
-// the Social Recovery Module is enabled, the caller to the Module has to be the Safe Contract, the
-// guardian is revoked from the guardian list, the linked list integrity remains and no other account
-// (guardian or not) is affected.
+// This integrity rule verifies that if the revokeGuardianWithThreshold(...) executes, then ensure that:
+// - the Social Recovery Module is enabled
+// - the caller to the Module has to be the Safe Contract
+// - the guardian is revoked from the guardian list
+// - the linked list integrity remains,
+// - and no other account (guardian or not) is affected.
 rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardian, uint256 threshold, address otherAccount) {
-
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
 
     require guardian != otherAccount;
@@ -110,7 +115,7 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
     require currentGuardiansCount > 0;
 
-    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
+    requireGuardiansLinkedListIntegrity();
     require guardianStorageContract.entries[safeContract].guardians[guardian] != guardian;
 
     currentContract.revokeGuardianWithThreshold(e, safeContract, prevGuardian, guardian, threshold);
@@ -125,7 +130,6 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
 
 // This integrity rule verifies that the guardian can always be revoked considering ideal conditions.
 rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, uint256 threshold) {
-
     requireSocialRecoveryModuleEnabled();
 
     require e.msg.value == 0;
@@ -134,7 +138,7 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
     require guardianStorageContract.countGuardians(safeContract) > threshold;
     require currentContract.isGuardian(safeContract, guardian);
     require guardianStorageContract.entries[safeContract].guardians[guardian] != guardian;
-    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
+    requireGuardiansLinkedListIntegrity();
 
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
     require guardianStorageContract.entries[safeContract].guardians[prevGuardian] == guardian;
@@ -150,11 +154,9 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
 
 // This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
 rule revokeGuardianRevertIfAddressNotGuardian(env e, address otherAccount, address prevGuardian, uint256 threshold) {
-
-    require !currentContract.isGuardian(safeContract, otherAccount);
+    bool isNotGuardian = !currentContract.isGuardian(safeContract, otherAccount);
 
     currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, otherAccount, threshold);
-    bool isReverted = lastReverted;
 
-    assert lastReverted;
+    assert isNotGuardian => lastReverted;
 }
