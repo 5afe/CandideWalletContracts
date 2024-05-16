@@ -49,8 +49,7 @@ rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, addr
 
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
 
-    // This can be removed once linked list invariant is implemented.
-    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 
     require guardian != otherAccount;
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
@@ -72,9 +71,7 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     require e.msg.value == 0;
     require threshold > 0;
     require guardianStorageContract.entries[safeContract].count < max_uint256; // To prevent overflow (Realistically can't reach).
-
-    // This can be removed once linked list invariant is implemented.
-    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 
     require guardian != 0;
     require guardian != SENTINEL();
@@ -95,9 +92,6 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
 // This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
 rule addGuardiansRevertIfDuplicateGuardian(env e, address guardian, uint256 threshold) {
 
-    // This can be removed once linked list invariant is implemented.
-    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
-
     require currentContract.isGuardian(safeContract, guardian);
 
     currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
@@ -108,9 +102,9 @@ rule addGuardiansRevertIfDuplicateGuardian(env e, address guardian, uint256 thre
 
 // This integrity rule verifies that the revokeGuardianWithThreshold(...) if executes ensures that
 // the Social Recovery Module is enabled, the caller to the Module has to be the Safe Contract, the
-// guardian is removed from the guardian list, the linked list integrity remains and no other account
+// guardian is revoked from the guardian list, the linked list integrity remains and no other account
 // (guardian or not) is affected.
-rule removeGuardiansWorksAsExpected(env e, address guardian, address prevGuardian, uint256 threshold, address otherAccount) {
+rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardian, uint256 threshold, address otherAccount) {
 
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
 
@@ -120,13 +114,8 @@ rule removeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
     require currentGuardiansCount > 0;
 
-    // This could be removed once linked list invariant is implemented.
-    // <------------------------------------------------------------>
-    require guardianStorageContract.entries[safeContract].count > 0 => guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
-    require guardian != prevGuardian;
-    require guardian != nextGuardian;
-    require prevGuardian != nextGuardian;
-    // <------------------------------------------------------------>
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
+    require guardianStorageContract.entries[safeContract].guardians[guardian] != guardian;
 
     currentContract.revokeGuardianWithThreshold(e, safeContract, prevGuardian, guardian, threshold);
 
@@ -138,22 +127,20 @@ rule removeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     assert currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
 }
 
-// This integrity rule verifies that the guardian can always be removed considering ideal conditions.
-rule guardianCanAlwaysBeRemoved(env e, address guardian, address prevGuardian, uint256 threshold) {
+// This integrity rule verifies that the guardian can always be revoked considering ideal conditions.
+rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, uint256 threshold) {
 
     requireSocialRecoveryModuleEnabled();
 
     require e.msg.value == 0;
     require guardian != 0;
     require threshold > 0;
+    require guardianStorageContract.countGuardians(safeContract) > threshold;
     require currentContract.isGuardian(safeContract, guardian);
-    require guardianStorageContract.entries[safeContract].count > threshold;
-
-    // This can be removed once linked list invariant is implemented.
-    require guardianStorageContract.entries[safeContract].count > 0 && guardianStorageContract.entries[safeContract].guardians[SENTINEL()] != 0; // Sentinel should not be zero if there are guardians.
+    require guardianStorageContract.entries[safeContract].guardians[guardian] != guardian;
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
-    require prevGuardian != nextGuardian;
     require guardianStorageContract.entries[safeContract].guardians[prevGuardian] == guardian;
 
     require e.msg.sender == safeContract;
@@ -163,6 +150,17 @@ rule guardianCanAlwaysBeRemoved(env e, address guardian, address prevGuardian, u
     assert !isReverted &&
         guardianStorageContract.entries[safeContract].guardians[prevGuardian] == nextGuardian &&
         !currentContract.isGuardian(safeContract, guardian);
+}
+
+// This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
+rule revokeGuardianRevertIfAddressNotGuardian(env e, address otherAccount, address prevGuardian, uint256 threshold) {
+
+    require !currentContract.isGuardian(safeContract, otherAccount);
+
+    currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, otherAccount, threshold);
+    bool isReverted = lastReverted;
+
+    assert lastReverted;
 }
 
 // This rule verifies that the guardian can always initiate recovery considering some ideal conditions.
