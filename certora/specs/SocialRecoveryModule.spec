@@ -10,6 +10,7 @@ methods {
     function threshold(address) external returns (uint256) envfree;
     function nonce(address) external returns (uint256) envfree;
     function encodeRecoveryDataHash(address, address[], uint256, uint256) external returns (bytes32) envfree;
+    function getRecoveryApprovals(address, address[], uint256) external returns (uint256) envfree;
 
     // Guardian Storage Functions
     function guardianStorageContract.countGuardians(address) external returns (uint256) envfree;
@@ -164,24 +165,33 @@ rule guardianCanAlwaysBeRemoved(env e, address guardian, address prevGuardian, u
         !currentContract.isGuardian(safeContract, guardian);
 }
 
-// This rule verifies that only the guardian can initiate recovery.
-rule confirmRecoveryIsInitiatedByGuardian(env e, address[] newOwners, uint256 newThreshold, bool execute, uint256 index) {
-    require index < newOwners.length; // Index should be less than the number of owners.
-    require newThreshold <= newOwners.length; // Threshold should be less than or equal to the number of owners.
-    require e.block.timestamp + currentContract.recoveryPeriod < max_uint64; // The year will be 2500+ (Roughly 500 years from now).
+// This rule verifies that the guardian can always initiate recovery considering some ideal conditions.
+rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, address[] newOwners, uint256 newThreshold, bool execute) {
+
+    require newThreshold > 0;
+    require newThreshold <= newOwners.length;
+
+    require e.msg.value == 0;
+    require e.msg.sender == guardian;
+    require currentContract.isGuardian(safeContract, guardian);
+    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
+    require e.block.timestamp + currentContract.recoveryPeriod < max_uint64;
 
     uint256 nonce = currentContract.nonce(safeContract);
+    require nonce < max_uint256;
+
     bytes32 recoveryHash = currentContract.encodeRecoveryDataHash(safeContract, newOwners, newThreshold, nonce);
+    require currentContract.recoveryRequests[safeContract].executeAfter == 0; // This ensures that the recovery is not already initiated.
+
+    // This ensures that the required threshold is reached.
+    require currentContract.getRecoveryApprovals(safeContract, newOwners, newThreshold) == currentContract.threshold(safeContract);
 
     currentContract.confirmRecovery@withrevert(e, safeContract, newOwners, newThreshold, execute);
-    bool isReverted = lastReverted; // Check if the transaction is reverted.
+    bool isReverted = lastReverted;
 
-    // Check if the recovery initiation started.
-    assert !isReverted =>
-        currentContract.isGuardian(safeContract, e.msg.sender) && // Only guardian can call this function.
-        currentContract.confirmedHashes[recoveryHash][e.msg.sender]; // Check if the guardian confirmed the recovery.
-    // Check if the recovery is executed as well.
-    assert !isReverted && execute =>
-        to_mathint(currentContract.recoveryRequests[safeContract].executeAfter) == e.block.timestamp + currentContract.recoveryPeriod && // Check if the recovery finalization time is set.
-        currentContract.recoveryRequests[safeContract].newThreshold == newThreshold; // Check if the new threshold is set.
+    assert !isReverted &&
+        currentContract.confirmedHashes[recoveryHash][e.msg.sender];
+    assert execute =>
+        to_mathint(currentContract.recoveryRequests[safeContract].executeAfter) == e.block.timestamp + currentContract.recoveryPeriod &&
+        currentContract.recoveryRequests[safeContract].newThreshold == newThreshold;
 }
