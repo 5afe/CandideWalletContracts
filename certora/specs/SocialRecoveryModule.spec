@@ -40,6 +40,11 @@ function requireSocialRecoveryModuleEnabled() {
     require(safeContract.isModuleEnabled(currentContract));
 }
 
+// Setup function that `require`s the integrity of the guardians linked list
+// in the `GuardianStorage` contract. This is needed as `invariant`s can only
+// be proven for `currentContract` and not `guardianStorageContract`, however,
+// the integrity of this list is required for rules and invariants of the
+// recovery module. For proof of this integrity, see `GuardianStorage.spec`.
 function requireGuardiansLinkedListIntegrity() {
     require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 }
@@ -54,7 +59,6 @@ rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, addr
 
     requireGuardiansLinkedListIntegrity();
 
-    require guardian != otherAccount;
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
 
     currentContract.addGuardianWithThreshold(e, safeContract, guardian, threshold);
@@ -62,66 +66,62 @@ rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, addr
     assert safeContract.isModuleEnabled(currentContract);
     assert e.msg.sender == safeContract;
     assert currentContract.isGuardian(safeContract, guardian);
-    assert otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
+    assert guardian != otherAccount => otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
     assert currentGuardiansCount + 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
 }
 
 // This integrity rule verifies that the guardian can always be added considering ideal conditions.
-// Some of the conditions are:
-// - No value should be sent with the transaction.
-// - The threshold should be greater than 0. We can't have guardian(s) with a threshold of 0.
-// - The guardian count should be less than the maximum value to prevent overflow.
-// - The guardian should not be values such as zero, sentinel, or the Safe contract itself.
-// - The guardian should not be an owner of the Safe contract at the time of addition.
-// - The guardian should not be already added as a guardian.
-// - The threshold should be less than or equal to the total number of guardians.
-// - Safe contract should be the sender of the transaction.
 rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     requireSocialRecoveryModuleEnabled();
 
+    // No value should be sent with the transaction.
     require e.msg.value == 0;
+    // The threshold should be greater than 0. We can't have guardian(s) with a threshold of 0.
     require threshold > 0;
-    require guardianStorageContract.entries[safeContract].count < max_uint256; // To prevent overflow (Realistically can't reach).
+
+    uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;    
+    // The guardian count should be less than the maximum value to prevent overflow.
+    require currentGuardiansCount < max_uint256; // To prevent overflow (Realistically can't reach).
     requireGuardiansLinkedListIntegrity();
 
+    // The guardian should not be values such as zero, sentinel, or the Safe contract itself.
     require guardian != 0;
     require guardian != SENTINEL();
     require guardian != safeContract;
 
+    // The guardian should not be an owner of the Safe contract at the time of addition.
     require !safeContract.isOwner(guardian);
+    // The guardian should not be already added as a guardian.
     require !currentContract.isGuardian(safeContract, guardian);
 
+    // The threshold should be less than or equal to the total number of guardians.
     require threshold <= guardianStorageContract.countGuardians(safeContract);
 
+    // Safe contract should be the sender of the transaction.
     require e.msg.sender == safeContract;
     currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
     bool isReverted = lastReverted;
 
-    assert !isReverted && currentContract.isGuardian(safeContract, guardian);
+    assert !isReverted &&
+        currentContract.isGuardian(safeContract, guardian) &&
+        currentGuardiansCount + 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
 }
 
-// This integrity rule verifies that the addition of a new guardian always reverts if the guardian is already added.
-rule addGuardianRevertIfDuplicateGuardian(env e, address guardian, uint256 threshold) {
+// This integrity rule verifies the possibilites in which the addition of a new guardian can revert.
+rule addGuardianRevertPossibilities(env e, address guardian, uint256 threshold) {
     bool isGuardian = currentContract.isGuardian(safeContract, guardian);
 
     currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
+    bool isReverted = lastReverted;
 
-    assert isGuardian => lastReverted;
-}
-
-// This integrity rule verifies that the addition of a new guardian can revert due to different reasons even if the address is not a guardian.
-rule addGuardianCanRevertEvenIfAddressIsNotGuardian(env e, address otherAccount, uint256 threshold) {
-    bool isNotGuardian = !currentContract.isGuardian(safeContract, otherAccount);
-
-    currentContract.addGuardianWithThreshold@withrevert(e, safeContract, otherAccount, threshold);
-
-    assert isNotGuardian && lastReverted =>
+    assert isGuardian => isReverted;
+    assert !isGuardian && isReverted =>
         e.msg.sender != safeContract ||
         e.msg.value != 0 ||
-        otherAccount == 0 ||
-        otherAccount == SENTINEL() ||
-        otherAccount == safeContract ||
-        safeContract.isOwner(otherAccount) ||
+        guardian == 0 ||
+        guardian == SENTINEL() ||
+        guardian == safeContract ||
+        safeContract.isOwner(guardian) ||
         threshold == 0 ||
         threshold >= guardianStorageContract.entries[safeContract].count ||
         guardianStorageContract.entries[safeContract].count == max_uint256 ||
@@ -137,7 +137,6 @@ rule addGuardianCanRevertEvenIfAddressIsNotGuardian(env e, address otherAccount,
 rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardian, uint256 threshold, address otherAccount) {
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
 
-    require guardian != otherAccount;
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
 
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
@@ -152,25 +151,23 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     assert e.msg.sender == safeContract;
     assert !currentContract.isGuardian(safeContract, guardian);
     assert guardianStorageContract.entries[safeContract].guardians[prevGuardian] == nextGuardian;
-    assert otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
+    assert guardian != otherAccount => otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
     assert currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
 }
 
 // This integrity rule verifies that the guardian can always be revoked considering ideal conditions.
-// Some of the conditions are:
-// - No value should be sent with the transaction.
-// - Guardian should not be zero address.
-// - New threshold should be greater than 0.
-// - The guardian count should be greater than the new threshold.
-// - The address should be a guardian.
-// - Safe Contract should be the sender of the transaction.
 rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, uint256 threshold) {
     requireSocialRecoveryModuleEnabled();
 
+    // No value should be sent with the transaction.
     require e.msg.value == 0;
+    // Guardian should not be zero address.
     require guardian != 0;
+    //New threshold should be greater than 0.
     require threshold > 0;
+    // The guardian count should be greater than the new threshold.
     require guardianStorageContract.countGuardians(safeContract) > threshold;
+    // The address should be a guardian.
     require currentContract.isGuardian(safeContract, guardian);
     require guardianStorageContract.entries[safeContract].guardians[guardian] != guardian;
     requireGuardiansLinkedListIntegrity();
@@ -178,31 +175,28 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
     require guardianStorageContract.entries[safeContract].guardians[prevGuardian] == guardian;
 
+    uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;    
+
+    // Safe Contract should be the sender of the transaction.
     require e.msg.sender == safeContract;
     currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, guardian, threshold);
     bool isReverted = lastReverted;
 
     assert !isReverted &&
         guardianStorageContract.entries[safeContract].guardians[prevGuardian] == nextGuardian &&
-        !currentContract.isGuardian(safeContract, guardian);
+        !currentContract.isGuardian(safeContract, guardian) &&
+        currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
 }
 
-// This integrity rule verifies that the revocation of an address always reverts if the address is not a guardian.
-rule revokeGuardianRevertIfAddressNotGuardian(env e, address otherAccount, address prevGuardian, uint256 threshold) {
+// This integrity rule verifies the possibilites in which the revocation of a new guardian can revert.
+rule revokeGuardianRevertPossibilities(env e, address otherAccount, address prevGuardian, uint256 threshold) {
     bool isNotGuardian = !currentContract.isGuardian(safeContract, otherAccount);
 
     currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, otherAccount, threshold);
+    bool isReverted = lastReverted;
 
-    assert isNotGuardian => lastReverted;
-}
-
-// This integrity rule verifies that the revocation of an address can revert due to different reasons even if the address is a guardian.
-rule revokeGuardianCanRevertEvenIfAddressIsGuardian(env e, address otherAccount, address prevGuardian, uint256 threshold) {
-    bool isGuardian = currentContract.isGuardian(safeContract, otherAccount);
-
-    currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, otherAccount, threshold);
-
-    assert isGuardian && lastReverted =>
+    assert isNotGuardian => isReverted;
+    assert !isNotGuardian && isReverted =>
         e.msg.sender != safeContract ||
         e.msg.value != 0 ||
         otherAccount == 0 ||
