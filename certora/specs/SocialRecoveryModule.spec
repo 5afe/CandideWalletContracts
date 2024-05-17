@@ -11,6 +11,7 @@ methods {
 
     // Guardian Storage Functions
     function guardianStorageContract.countGuardians(address) external returns (uint256) envfree;
+    function guardianStorageContract.isGuardianInGuardianList(address, address) external returns (bool) envfree;
 
     // Safe Functions
     function safeContract.isModuleEnabled(address module) external returns (bool) envfree;
@@ -143,7 +144,7 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     require currentGuardiansCount > 0;
 
     requireGuardiansLinkedListIntegrity();
-    require guardianStorageContract.entries[safeContract].guardians[guardian] != guardian;
+    require guardianStorageContract.isGuardianInGuardianList(safeContract, guardian);
 
     currentContract.revokeGuardianWithThreshold(e, safeContract, prevGuardian, guardian, threshold);
 
@@ -169,7 +170,7 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
     require guardianStorageContract.countGuardians(safeContract) > threshold;
     // The address should be a guardian.
     require currentContract.isGuardian(safeContract, guardian);
-    require guardianStorageContract.entries[safeContract].guardians[guardian] != guardian;
+    require guardianStorageContract.isGuardianInGuardianList(safeContract, guardian);
     requireGuardiansLinkedListIntegrity();
 
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
