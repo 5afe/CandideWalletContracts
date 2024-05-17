@@ -214,21 +214,25 @@ rule revokeGuardianRevertPossibilities(env e, address otherAccount, address prev
 
 // This rule verifies that the guardian can always initiate recovery considering some ideal conditions.
 rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, address[] newOwners, uint256 newThreshold, bool execute) {
-
+    // The threshold should always be greater than 0 and less than the number of new owners.
     require newThreshold > 0;
     require newThreshold <= newOwners.length;
 
+    // No ether should be sent as part of this function call, and the caller should be a guardian.
     require e.msg.value == 0;
     require e.msg.sender == guardian;
     require currentContract.isGuardian(safeContract, guardian);
-    require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
-    require e.block.timestamp + currentContract.recoveryPeriod < max_uint64;
 
+    requireGuardiansLinkedListIntegrity();
+
+    // Nonce and timestamp + recovery period should not overflow.
+    require e.block.timestamp + currentContract.recoveryPeriod <= max_uint64;
     uint256 nonce = currentContract.nonce(safeContract);
     require nonce < max_uint256;
 
     bytes32 recoveryHash = currentContract.encodeRecoveryDataHash(safeContract, newOwners, newThreshold, nonce);
-    require currentContract.recoveryRequests[safeContract].executeAfter == 0; // This ensures that the recovery is not already initiated.
+    // This ensures that the recovery is not already initiated.
+    require currentContract.recoveryRequests[safeContract].executeAfter == 0;
 
     // This ensures that the required threshold is reached.
     require currentContract.getRecoveryApprovals(safeContract, newOwners, newThreshold) == currentContract.threshold(safeContract);
@@ -240,5 +244,6 @@ rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, addr
         currentContract.confirmedHashes[recoveryHash][e.msg.sender];
     assert execute =>
         to_mathint(currentContract.recoveryRequests[safeContract].executeAfter) == e.block.timestamp + currentContract.recoveryPeriod &&
-        currentContract.recoveryRequests[safeContract].newThreshold == newThreshold;
+        currentContract.recoveryRequests[safeContract].newThreshold == newThreshold &&
+        currentContract.recoveryRequests[safeContract].newOwners.length == newOwners.length;
 }
