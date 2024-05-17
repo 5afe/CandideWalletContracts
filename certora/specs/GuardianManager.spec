@@ -35,15 +35,15 @@ methods {
 definition MAX_UINT256() returns uint256 = 0xffffffffffffffffffffffffffffffff;
 
 persistent ghost reach(address, address, address) returns bool {
-    init_state axiom forall address Z. forall address X. forall address Y. reach(Z, X, Y) == (X == Y || to_mathint(Y) == 0);
+    init_state axiom forall address wallet. forall address X. forall address Y. reach(wallet, X, Y) == (X == Y || to_mathint(Y) == 0);
 }
 
 persistent ghost mapping(address => mapping(address => address)) ghostOwners {
-    init_state axiom forall address Y. forall address X. to_mathint(ghostOwners[Y][X]) == 0;
+    init_state axiom forall address wallet. forall address X. to_mathint(ghostOwners[wallet][X]) == 0;
 }
 
-persistent ghost ghostSuccCount(address) returns mathint {
-    init_state axiom forall address X. ghostSuccCount(X) == 0;
+persistent ghost ghostSuccCount(address, address) returns mathint {
+    init_state axiom forall address wallet. forall address X. ghostSuccCount(wallet, X) == 0;
 }
 
 persistent ghost mapping(address => uint256) ghostOwnerCount {
@@ -199,10 +199,10 @@ definition updateSucc(address wallet, address a, address b) returns bool = foral
             (reach@old(wallet, X, a) && reach@old(wallet, b, Y)));
 
 definition count_expected(address wallet, address key) returns mathint =
-    ghostOwners[wallet][key] == NULL ? 0 : ghostOwners[wallet][key] == SENTINEL ? 1 : ghostSuccCount(ghostOwners[wallet][key]) + 1;
+    ghostOwners[wallet][key] == NULL ? 0 : ghostOwners[wallet][key] == SENTINEL ? 1 : ghostSuccCount(wallet, ghostOwners[wallet][key]) + 1;
 
 definition updateGhostSuccCount(address wallet, address key, mathint diff) returns bool = forall address X.
-    ghostSuccCount@new(X) == ghostSuccCount@old(X) + (reach(wallet, X, key) ? diff : 0);
+    ghostSuccCount@new(wallet, X) == ghostSuccCount@old(wallet, X) + (reach(wallet, X, key) ? diff : 0);
 
 // hook to update the ghostOwners and the reach ghost state whenever the entries field
 // in storage is written.
@@ -211,14 +211,14 @@ hook Sstore currentContract.entries[KEY address wallet].guardians[KEY address ke
     address valueOrNull;
     address someKey;
     require reach_succ(wallet, someKey, ghostOwners[wallet][someKey]);
-    require ghostSuccCount(someKey) == count_expected(wallet, someKey);
+    require ghostSuccCount(wallet, someKey) == count_expected(wallet, someKey);
     assert reach(wallet, value, key) => value == SENTINEL, "list is cyclic";
     ghostOwners[wallet][key] = value;
     havoc reach assuming updateSucc(wallet, key, next_or_null(value));
-    mathint countDiff = count_expected(wallet, key) - ghostSuccCount(key);
+    mathint countDiff = count_expected(wallet, key) - ghostSuccCount(wallet, key);
     havoc ghostSuccCount assuming updateGhostSuccCount(wallet, key, countDiff);
     assert reach_succ(wallet, someKey, ghostOwners[wallet][someKey]), "reach_succ violated after owners update";
-    assert ghostSuccCount(someKey) == count_expected(wallet, someKey);
+    assert ghostSuccCount(wallet, someKey) == count_expected(wallet, someKey);
 }
 
 hook Sstore currentContract.entries[KEY address wallet].count uint256 value {
@@ -230,7 +230,7 @@ hook Sstore currentContract.entries[KEY address wallet].count uint256 value {
 hook Sload address value currentContract.entries[KEY address wallet].guardians[KEY address key] {
     require ghostOwners[wallet][key] == value;
     require reach_succ(wallet, key, value);
-    require ghostSuccCount(key) == count_expected(wallet, key);
+    require ghostSuccCount(wallet, key) == count_expected(wallet, key);
 }
 
 hook Sload uint256 value currentContract.entries[KEY address wallet].count {
@@ -242,7 +242,7 @@ hook Sload uint256 value currentContract.entries[KEY address wallet].count {
 
 invariant reachCount(address wallet)
     forall address X. forall address Y. reach(wallet, X, Y) =>
-        ghostSuccCount(X) >= ghostSuccCount(Y)
+        ghostSuccCount(wallet, X) >= ghostSuccCount(wallet, Y)
     {
         preserved {
             requireInvariant reach_invariant(wallet);
@@ -258,7 +258,7 @@ invariant reachCount(address wallet)
     }
 
 invariant count_correct(address wallet)
-    forall address Y. forall address X. ghostSuccCount(X) == count_expected(Y, X)
+    forall address X. ghostSuccCount(wallet, X) == count_expected(wallet, X)
     {
         preserved {
             requireInvariant reach_invariant(wallet);
@@ -274,7 +274,7 @@ invariant count_correct(address wallet)
 
 
 invariant ownercount_correct(address wallet)
-   (ghostOwnerCount[wallet] == 0 && ghostOwners[wallet][SENTINEL] == NULL) || (ghostSuccCount(SENTINEL) == ghostOwnerCount[wallet] + 1)
+   (ghostOwnerCount[wallet] == 0 && ghostOwners[wallet][SENTINEL] == NULL) || (ghostSuccCount(wallet, SENTINEL) == ghostOwnerCount[wallet] + 1)
     {
         preserved {
             requireInvariant reach_invariant(wallet);
