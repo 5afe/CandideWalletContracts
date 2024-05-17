@@ -154,8 +154,8 @@ invariant inListReachable(address wallet)
     }
 
 invariant reachHeadNext(address wallet)
-    forall address Y. forall address X. reach(wallet, SENTINEL, X) && X != SENTINEL && X != NULL =>
-           ghostOwners[Y][SENTINEL] != SENTINEL && reach(wallet, ghostOwners[Y][SENTINEL], X)
+    forall address X. reach(wallet, SENTINEL, X) && X != SENTINEL && X != NULL =>
+           ghostOwners[wallet][SENTINEL] != SENTINEL && reach(wallet, ghostOwners[wallet][SENTINEL], X)
     {
         preserved {
             requireInvariant inListReachable(wallet);
