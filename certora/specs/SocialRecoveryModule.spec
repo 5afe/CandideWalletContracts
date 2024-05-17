@@ -213,7 +213,9 @@ rule revokeGuardianRevertPossibilities(env e, address otherAccount, address prev
 }
 
 // This rule verifies that the guardian can always initiate recovery considering some ideal conditions.
-rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, address[] newOwners, uint256 newThreshold, bool execute, uint256 index) {
+rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, address[] newOwners, uint256 newThreshold, bool execute) {
+    uint256 index;
+    // Index must be valid.
     require index < newOwners.length;
 
     // The threshold should always be greater than 0 and less than the number of new owners.
@@ -227,7 +229,7 @@ rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, addr
 
     requireGuardiansLinkedListIntegrity();
 
-    // Nonce and timestamp + recovery period should not overflow.
+    // Nonce and timestamp + recovery period should not overflow (Realistically can't reach).
     require e.block.timestamp + currentContract.recoveryPeriod <= max_uint64;
     uint256 nonce = currentContract.nonce(safeContract);
     require nonce < max_uint256;
