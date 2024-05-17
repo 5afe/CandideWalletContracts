@@ -21,9 +21,10 @@ contract GuardianStorageHarness is GuardianStorage {
             return 0;
         }
 
-        while (currentGuardian != SENTINEL_GUARDIANS && currentGuardian != address(0)) {
-            count++;
+        while (currentGuardian != SENTINEL_GUARDIANS) {
             currentGuardian = entry.guardians[currentGuardian];
+            require(currentGuardian != address(0), "Guardian is address(0)");
+            count++;
         }
     }
 }
