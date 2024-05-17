@@ -11,7 +11,7 @@ methods {
 
     // Guardian Storage Functions
     function guardianStorageContract.countGuardians(address) external returns (uint256) envfree;
-    function guardianStorageContract.isGuardianInGuardianList(address, address) external returns (bool) envfree;
+    function guardianStorageContract.getGuardians(address) external returns (address[]) envfree;
 
     // Safe Functions
     function safeContract.isModuleEnabled(address module) external returns (bool) envfree;
@@ -46,7 +46,11 @@ function requireSocialRecoveryModuleEnabled() {
 // be proven for `currentContract` and not `guardianStorageContract`, however,
 // the integrity of this list is required for rules and invariants of the
 // recovery module. For proof of this integrity, see `GuardianStorage.spec`.
-function requireGuardiansLinkedListIntegrity() {
+function requireGuardiansLinkedListIntegrity(address guardian) {
+    uint256 index;
+    require index < guardianStorageContract.countGuardians(safeContract);
+    require currentContract.isGuardian(safeContract, guardian) =>
+        guardianStorageContract.getGuardians(safeContract)[index] == guardian;
     require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 }
 
@@ -58,7 +62,7 @@ function requireGuardiansLinkedListIntegrity() {
 rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, address otherAccount) {
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
 
-    requireGuardiansLinkedListIntegrity();
+    requireGuardiansLinkedListIntegrity(guardian);
 
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
 
@@ -83,7 +87,7 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;    
     // The guardian count should be less than the maximum value to prevent overflow.
     require currentGuardiansCount < max_uint256; // To prevent overflow (Realistically can't reach).
-    requireGuardiansLinkedListIntegrity();
+    requireGuardiansLinkedListIntegrity(guardian);
 
     // The guardian should not be values such as zero, sentinel, or the Safe contract itself.
     require guardian != 0;
@@ -115,8 +119,8 @@ rule addGuardianRevertPossibilities(env e, address guardian, uint256 threshold) 
     currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
     bool isReverted = lastReverted;
 
-    assert isGuardian => isReverted;
-    assert !isGuardian && isReverted =>
+    assert isReverted =>
+        isGuardian ||
         e.msg.sender != safeContract ||
         e.msg.value != 0 ||
         guardian == 0 ||
@@ -143,8 +147,7 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
     require currentGuardiansCount > 0;
 
-    requireGuardiansLinkedListIntegrity();
-    require guardianStorageContract.isGuardianInGuardianList(safeContract, guardian);
+    requireGuardiansLinkedListIntegrity(guardian);
 
     currentContract.revokeGuardianWithThreshold(e, safeContract, prevGuardian, guardian, threshold);
 
@@ -170,8 +173,7 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
     require guardianStorageContract.countGuardians(safeContract) > threshold;
     // The address should be a guardian.
     require currentContract.isGuardian(safeContract, guardian);
-    require guardianStorageContract.isGuardianInGuardianList(safeContract, guardian);
-    requireGuardiansLinkedListIntegrity();
+    requireGuardiansLinkedListIntegrity(guardian);
 
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
     require guardianStorageContract.entries[safeContract].guardians[prevGuardian] == guardian;
@@ -191,13 +193,13 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
 
 // This integrity rule verifies the possibilites in which the revocation of a new guardian can revert.
 rule revokeGuardianRevertPossibilities(env e, address otherAccount, address prevGuardian, uint256 threshold) {
-    bool isNotGuardian = !currentContract.isGuardian(safeContract, otherAccount);
+    bool isGuardian = currentContract.isGuardian(safeContract, otherAccount);
 
     currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, otherAccount, threshold);
     bool isReverted = lastReverted;
 
-    assert isNotGuardian => isReverted;
-    assert !isNotGuardian && isReverted =>
+    assert isReverted =>
+        !isGuardian ||
         e.msg.sender != safeContract ||
         e.msg.value != 0 ||
         otherAccount == 0 ||

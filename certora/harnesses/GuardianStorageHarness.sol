@@ -27,20 +27,4 @@ contract GuardianStorageHarness is GuardianStorage {
             count++;
         }
     }
-
-    /**
-     * @notice Gets the list of guardians and check if the passed address is a guardian in that list.
-     * @param _wallet The target wallet.
-     * @param _checkGuardian The guardian to check.
-     * @return _checkGuardian is guardian or not.
-     */
-    function isGuardianInGuardianList(address _wallet, address _checkGuardian) public view returns (bool) {
-        address[] memory guardians = getGuardians(_wallet);
-        for (uint256 i = 0; i < guardians.length; i++) {
-            if (guardians[i] == _checkGuardian) {
-                return true;
-            }
-        }
-        return false;
-    }
 }
