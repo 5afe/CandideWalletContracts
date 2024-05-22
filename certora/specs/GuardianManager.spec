@@ -4,9 +4,9 @@
  * https://github.com/safe-global/safe-smart-account/blob/main/certora/specs/OwnerReach.spec
  * 
  * This file uses a reach predicate:
- *    ghost reach(address, address) returns bool
- * to represent the transitive relation of the next
- * relation given byt the "owners" field.
+ *    ghost reach(address, address, address) returns bool
+ * to represent the transitive of the next
+ * relation given byt the "owners" field relation for a specific wallet.
  *
  * The idea comes from the paper
  *
@@ -35,7 +35,7 @@ methods {
 definition MAX_UINT256() returns uint256 = 0xffffffffffffffffffffffffffffffff;
 
 persistent ghost reach(address, address, address) returns bool {
-    init_state axiom forall address wallet. forall address X. forall address Y. reach(wallet, X, Y) == (X == Y || to_mathint(Y) == 0);
+    init_state axiom forall address X. forall address Y. forall address wallet. reach(wallet, X, Y) == (X == Y || to_mathint(Y) == 0);
 }
 
 persistent ghost mapping(address => mapping(address => address)) ghostOwners {
@@ -98,7 +98,7 @@ invariant nextNull(address wallet)
 
 // every element reaches the 0 pointer (because we replace in reach the end sentinel with null)
 invariant reach_null(address wallet)
-    (forall address X. reach(wallet, X, NULL))
+    (forall address W. forall address X. reach(W, X, NULL))
     {
         preserved {
             requireInvariant reach_invariant(wallet);
@@ -110,7 +110,7 @@ invariant reach_null(address wallet)
 
 // every element that is reachable from another element is either the null pointer or part of the list.
 invariant reachableInList(address wallet)
-    (forall address X. forall address Y. reach(wallet, X, Y) => X == Y || Y == 0 || ghostOwners[wallet][Y] != 0)
+    (forall address W. forall address X. forall address Y. reach(W, X, Y) => X == Y || Y == 0 || ghostOwners[W][Y] != 0)
     {
         preserved {
             requireInvariant reach_invariant(wallet);
@@ -124,11 +124,11 @@ invariant reachableInList(address wallet)
 
 // reach encodes a linear order. This axiom corresponds to Table 2 in [1].
 invariant reach_invariant(address wallet)
-    forall address X. forall address Y. forall address Z. (
-        reach(wallet, X, X)
-        && (reach(wallet, X, Y) && reach (wallet, Y, X) => X == Y)
-        && (reach(wallet, X, Y) && reach (wallet, Y, Z) => reach(wallet, X, Z))
-        && (reach(wallet, X, Y) && reach (wallet, X, Z) => (reach(wallet, Y, Z) || reach(wallet, Z, Y)))
+    forall address W. forall address X. forall address Y. forall address Z. (
+        reach(W, X, X)
+        && (reach(W, X, Y) && reach(W, Y, X) => X == Y)
+        && (reach(W, X, Y) && reach(W, Y, Z) => reach(W, X, Z))
+        && (reach(W, X, Y) && reach(W, X, Z) => (reach(W, Y, Z) || reach(W, Z, Y)))
     )
     {
         preserved {
@@ -142,7 +142,7 @@ invariant reach_invariant(address wallet)
 
 // every element with non-zero owner field is reachable from SENTINEL (head of the list)
 invariant inListReachable(address wallet)
-    (forall address key. ghostOwners[wallet][key] != 0 => reach(wallet, SENTINEL, key))
+    (forall address W. forall address key. ghostOwners[W][key] != 0 => reach(W, SENTINEL, key))
     {
         preserved {
             requireInvariant thresholdSet(wallet);
@@ -154,8 +154,8 @@ invariant inListReachable(address wallet)
     }
 
 invariant reachHeadNext(address wallet)
-    forall address X. reach(wallet, SENTINEL, X) && X != SENTINEL && X != NULL =>
-           ghostOwners[wallet][SENTINEL] != SENTINEL && reach(wallet, ghostOwners[wallet][SENTINEL], X)
+    forall address W. forall address X. (W == wallet && reach(W, SENTINEL, X) && X != SENTINEL && X != NULL) =>
+           (W == wallet && ghostOwners[W][SENTINEL] != SENTINEL && reach(W, ghostOwners[W][SENTINEL], X))
     {
         preserved {
             requireInvariant inListReachable(wallet);
@@ -168,7 +168,7 @@ invariant reachHeadNext(address wallet)
 
 // every element reaches its direct successor (except for the tail-SENTINEL).
 invariant reach_next(address wallet)
-    forall address X. reach_succ(wallet, X, ghostOwners[wallet][X])
+    forall address W. forall address X. reach_succ(W, X, ghostOwners[W][X])
     {
         preserved {
             requireInvariant inListReachable(wallet);
@@ -193,16 +193,17 @@ definition reach_succ(address wallet, address key, address next) returns bool =
 // Update the reach relation when the next pointer of a is changed to b.
 // This corresponds to the first two equations in Table 3 [1] (destructive update to break previous paths through a and
 // then additionally allow the path to go through the new edge from a to b).
-definition updateSucc(address wallet, address a, address b) returns bool = forall address X. forall address Y. reach@new(wallet, X, Y) ==
+definition updateSucc(address wallet, address a, address b) returns bool = 
+   forall address W. forall address X. forall address Y. reach@new(W, X, Y) ==
             (X == Y ||
-            (reach@old(wallet, X, Y) && !(reach@old(wallet, X, a) && a != Y && reach@old(wallet, a, Y))) ||
-            (reach@old(wallet, X, a) && reach@old(wallet, b, Y)));
+            (reach@old(W, X, Y) && !(W == wallet && reach@old(W, X, a) && a != Y && reach@old(W, a, Y))) ||
+            (W == wallet && reach@old(W, X, a) && reach@old(W, b, Y)));
 
 definition count_expected(address wallet, address key) returns mathint =
     ghostOwners[wallet][key] == NULL ? 0 : ghostOwners[wallet][key] == SENTINEL ? 1 : ghostSuccCount(wallet, ghostOwners[wallet][key]) + 1;
 
-definition updateGhostSuccCount(address wallet, address key, mathint diff) returns bool = forall address X.
-    ghostSuccCount@new(wallet, X) == ghostSuccCount@old(wallet, X) + (reach(wallet, X, key) ? diff : 0);
+definition updateGhostSuccCount(address wallet, address key, mathint diff) returns bool = forall address W. forall address X.
+    (W == wallet) && (ghostSuccCount@new(wallet, X) == (ghostSuccCount@old(wallet, X) + (reach(wallet, X, key) ? diff : 0)));
 
 // hook to update the ghostOwners and the reach ghost state whenever the entries field
 // in storage is written.
