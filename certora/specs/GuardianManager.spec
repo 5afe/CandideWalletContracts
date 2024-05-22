@@ -74,7 +74,7 @@ invariant thresholdSet() forall address v. ghostThreshold[v] <= ghostOwnerCount[
         }
     }
 
-invariant self_not_owner(address wallet) currentContract != SENTINEL => ghostOwners[wallet][currentContract] == 0
+invariant self_not_owner() forall address W. currentContract != SENTINEL => ghostOwners[W][currentContract] == 0
     {
         preserved {
             requireInvariant reach_null();
@@ -307,7 +307,7 @@ rule isGuardianDoesNotRevert {
 rule isGuardianNotSelfOrSentinal {
     address addr;
     require addr == currentContract || addr == SENTINEL;
-    requireInvariant self_not_owner(safeContract);
+    requireInvariant self_not_owner();
     bool result = isGuardian(safeContract, addr);
     assert result == false, "currentContract or SENTINEL must not be guardian";
 }
