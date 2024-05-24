@@ -60,10 +60,9 @@ function requireGuardiansLinkedListIntegrity(address guardian) {
 // - the new guardian is added to the guardian list,
 // - and no other account (guardian or not) is affected.
 rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, address otherAccount) {
-    uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
-
     requireGuardiansLinkedListIntegrity(guardian);
 
+    uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
 
     currentContract.addGuardianWithThreshold(e, safeContract, guardian, threshold);
@@ -73,11 +72,13 @@ rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, addr
     assert currentContract.isGuardian(safeContract, guardian);
     assert guardian != otherAccount => otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
     assert currentGuardiansCount + 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
+    assert threshold > 0 && threshold <= guardianStorageContract.entries[safeContract].count;
 }
 
 // This integrity rule verifies that the guardian can always be added considering ideal conditions.
 rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     requireSocialRecoveryModuleEnabled();
+    requireGuardiansLinkedListIntegrity(guardian);
 
     // No value should be sent with the transaction.
     require e.msg.value == 0;
@@ -85,7 +86,6 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;    
     // The guardian count should be less than the maximum value to prevent overflow.
     require currentGuardiansCount < max_uint256; // To prevent overflow (Realistically can't reach).
-    requireGuardiansLinkedListIntegrity(guardian);
 
     // The guardian should not be values such as zero, sentinel, or the Safe contract itself.
     require guardian != 0;
@@ -97,7 +97,7 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
     // The guardian should not be already added as a guardian.
     require !currentContract.isGuardian(safeContract, guardian);
 
-    // The threshold must be greater than 0 and less than or equal to the total number of guardians.
+    // The threshold must be greater than 0 and less than or equal to the total number of guardians after adding the new guardian.
     require threshold > 0 && to_mathint(threshold) <= guardianStorageContract.entries[safeContract].count + 1;
 
     // Safe contract should be the sender of the transaction.
@@ -126,7 +126,7 @@ rule addGuardianRevertPossibilities(env e, address guardian, uint256 threshold) 
         guardian == safeContract ||
         safeContract.isOwner(guardian) ||
         threshold == 0 ||
-        threshold >= guardianStorageContract.entries[safeContract].count ||
+        to_mathint(threshold) > guardianStorageContract.entries[safeContract].count + 1 ||
         guardianStorageContract.entries[safeContract].count == max_uint256 ||
         !safeContract.isModuleEnabled(currentContract);
 }
@@ -138,14 +138,12 @@ rule addGuardianRevertPossibilities(env e, address guardian, uint256 threshold) 
 // - the linked list integrity remains,
 // - and no other account (guardian or not) is affected.
 rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardian, uint256 threshold, address otherAccount) {
-    address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
+    requireGuardiansLinkedListIntegrity(guardian);
 
+    address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
 
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
-    require currentGuardiansCount > 0;
-
-    requireGuardiansLinkedListIntegrity(guardian);
 
     currentContract.revokeGuardianWithThreshold(e, safeContract, prevGuardian, guardian, threshold);
 
@@ -154,22 +152,25 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     assert !currentContract.isGuardian(safeContract, guardian);
     assert guardianStorageContract.entries[safeContract].guardians[prevGuardian] == nextGuardian;
     assert guardian != otherAccount => otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
-    assert currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
+    assert currentGuardiansCount > 0 => currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
+    assert threshold <= guardianStorageContract.entries[safeContract].count;
 }
 
 // This integrity rule verifies that the guardian can always be revoked considering ideal conditions.
 rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, uint256 threshold) {
     requireSocialRecoveryModuleEnabled();
+    requireGuardiansLinkedListIntegrity(guardian);
 
     // No value should be sent with the transaction.
     require e.msg.value == 0;
     // Guardian should not be zero address.
     require guardian != 0;
-    // New threshold should be greater than 0 and the guardian count should be greater than the threshold.
-    require threshold > 0 && guardianStorageContract.entries[safeContract].count > threshold;
+    // If new threshold is 0, then the guardian count should be 1.
+    require threshold == 0 => guardianStorageContract.entries[safeContract].count == 1;
+    // Else, if new threshold is greater than 0, then the guardian count should be greater than the threshold.
+    require threshold > 0 => guardianStorageContract.entries[safeContract].count > threshold;
     // The address should be a guardian.
     require currentContract.isGuardian(safeContract, guardian);
-    requireGuardiansLinkedListIntegrity(guardian);
 
     address nextGuardian = guardianStorageContract.entries[safeContract].guardians[guardian];
     require guardianStorageContract.entries[safeContract].guardians[prevGuardian] == guardian;
@@ -200,9 +201,9 @@ rule revokeGuardianRevertPossibilities(env e, address otherAccount, address prev
         e.msg.value != 0 ||
         otherAccount == 0 ||
         otherAccount == SENTINEL() ||
-        threshold == 0 ||
         guardianStorageContract.entries[safeContract].count == 0 ||
-        threshold >= guardianStorageContract.entries[safeContract].count ||
         !safeContract.isModuleEnabled(currentContract) ||
-        guardianStorageContract.entries[safeContract].guardians[prevGuardian] != otherAccount;
+        guardianStorageContract.entries[safeContract].guardians[prevGuardian] != otherAccount ||
+        threshold >= guardianStorageContract.entries[safeContract].count ||
+        (threshold == 0 => guardianStorageContract.entries[safeContract].count != 1);
 }
