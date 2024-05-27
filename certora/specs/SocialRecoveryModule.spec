@@ -163,12 +163,10 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
 
     // No value should be sent with the transaction.
     require e.msg.value == 0;
-    // Guardian should not be zero address.
-    require guardian != 0;
-    // If new threshold is 0, then the guardian count should be 1.
+    // If new threshold is 0, then you must be removing the last guardian meaning the guardian count should be 1.
     require threshold == 0 => guardianStorageContract.entries[safeContract].count == 1;
-    // Else, if new threshold is greater than 0, then the guardian count should be greater than the threshold.
-    require threshold > 0 => guardianStorageContract.entries[safeContract].count > threshold;
+    // The new threshold should be less than or equal to the guardian count after removing.
+    require to_mathint(threshold) <= guardianStorageContract.entries[safeContract].count - 1;
     // The address should be a guardian.
     require currentContract.isGuardian(safeContract, guardian);
 
@@ -189,21 +187,21 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
 }
 
 // This integrity rule verifies the possibilites in which the revocation of a new guardian can revert.
-rule revokeGuardianRevertPossibilities(env e, address otherAccount, address prevGuardian, uint256 threshold) {
-    bool isGuardian = currentContract.isGuardian(safeContract, otherAccount);
+rule revokeGuardianRevertPossibilities(env e, address prevGuardian, address guardian, uint256 threshold) {
+    bool isGuardian = currentContract.isGuardian(safeContract, guardian);
 
-    currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, otherAccount, threshold);
+    currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, guardian, threshold);
     bool isReverted = lastReverted;
 
     assert isReverted =>
         !isGuardian ||
         e.msg.sender != safeContract ||
         e.msg.value != 0 ||
-        otherAccount == 0 ||
-        otherAccount == SENTINEL() ||
+        guardian == 0 ||
+        guardian == SENTINEL() ||
         guardianStorageContract.entries[safeContract].count == 0 ||
         !safeContract.isModuleEnabled(currentContract) ||
-        guardianStorageContract.entries[safeContract].guardians[prevGuardian] != otherAccount ||
-        threshold >= guardianStorageContract.entries[safeContract].count ||
-        (threshold == 0 => guardianStorageContract.entries[safeContract].count != 1);
+        guardianStorageContract.entries[safeContract].guardians[prevGuardian] != guardian ||
+        to_mathint(threshold) > guardianStorageContract.entries[safeContract].count - 1 ||
+        (threshold == 0 && guardianStorageContract.entries[safeContract].count != 1);
 }
