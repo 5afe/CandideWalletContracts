@@ -225,7 +225,7 @@ rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, addr
     require e.msg.sender == guardian;
     require currentContract.isGuardian(safeContract, guardian);
 
-    requireGuardiansLinkedListIntegrity();
+    requireGuardiansLinkedListIntegrity(guardian);
 
     // Nonce and timestamp + recovery period should not overflow (Realistically can't reach).
     require e.block.timestamp + currentContract.recoveryPeriod <= max_uint64;
