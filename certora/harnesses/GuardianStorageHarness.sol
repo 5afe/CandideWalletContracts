@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.12 <0.9.0;
+
 import {GuardianStorage} from "../../contracts/modules/social_recovery/storage/GuardianStorage.sol";
 
 contract GuardianStorageHarness is GuardianStorage {
-
     /**
-     * @notice Gets the count of guaridans for FV based on the linked list starting from SENTINEL (if any).
-     * @dev This is needed for FV to avoid cases where we have values which does not start with SENTINEL.
+     * @notice Counts the guardians by iterating through the linked list starting at the sentinel address,
+     * instead of relying on the count storage variable.
+     * @dev This would not count "shadow" guardians that are not part of the linked list, which would
+     * never happen assuming integrity of the linked list.
      * @param _wallet The target wallet.
      * @return count of guardians.
      */
