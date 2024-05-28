@@ -31,7 +31,6 @@ methods {
 // definition reachableOnly(method f) returns bool =
 //     f.selector != sig:simulateAndRevert(address,bytes).selector;
 
-
 definition MAX_UINT256() returns uint256 = 0xffffffffffffffffffffffffffffffff;
 
 persistent ghost reach(address, address, address) returns bool {
@@ -59,72 +58,74 @@ persistent ghost address NULL {
     axiom to_mathint(NULL) == 0;
 }
 
-// threshold can be 0 in case on Guardian is set for a wallet.
-invariant thresholdSet(address wallet) threshold(wallet) <= ghostGuardianCount[wallet]
+// threshold can be 0 in case no Guardian is set for a wallet.
+invariant thresholdSet(address wallet)
+    threshold(wallet) <= ghostGuardianCount[wallet]
     {
         preserved {
-            requireInvariant reach_null(wallet);
-            requireInvariant reach_invariant(wallet);
-            requireInvariant inListReachable(wallet);
-            requireInvariant reachableInList(wallet);
+            requireInvariant reach_null();
+            requireInvariant reach_invariant();
+            requireInvariant inListReachable();
+            requireInvariant reachableInList();
         }
     }
 
-invariant self_not_guardian(address wallet) currentContract != SENTINEL => ghostGuardians[wallet][currentContract] == 0
+invariant self_not_guardian()
+    forall address wallet. currentContract != SENTINEL => ghostGuardians[wallet][currentContract] == 0
     {
         preserved {
-            requireInvariant reach_null(wallet);
-            requireInvariant reach_invariant(wallet);
-            requireInvariant inListReachable(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant reach_null();
+            requireInvariant reach_invariant();
+            requireInvariant inListReachable();
+            requireInvariant reachableInList();
+            // requireInvariant thresholdSet();
         }
     }
 
 
 // every element with 0 in the guardians field can only reach the null pointer and itself
-invariant nextNull(address wallet)
-    ghostGuardians[wallet][NULL] == 0 &&
-    (forall address X. forall address Y. ghostGuardians[wallet][X] == 0 && reach(wallet, X, Y) => X == Y || Y == 0)
+invariant nextNull()
+    (forall address wallet. ghostGuardians[wallet][NULL] == 0) &&
+    (forall address wallet. forall address X. forall address Y. ghostGuardians[wallet][X] == 0 && reach(wallet, X, Y) => X == Y || Y == 0)
     {
         preserved {
-            requireInvariant reach_invariant(wallet);
-            requireInvariant inListReachable(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant reach_null(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant reach_invariant();
+            requireInvariant inListReachable();
+            requireInvariant reachableInList();
+            requireInvariant reach_null();
+            // requireInvariant thresholdSet();
         }
     }
 
 // every element reaches the 0 pointer (because we replace in reach the end sentinel with null)
-invariant reach_null(address wallet)
-    (forall address X. reach(wallet, X, NULL))
+invariant reach_null()
+    (forall address wallet. forall address X. reach(wallet, X, NULL))
     {
         preserved {
-            requireInvariant reach_invariant(wallet);
-            requireInvariant inListReachable(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant reach_invariant();
+            requireInvariant inListReachable();
+            requireInvariant reachableInList();
+            // requireInvariant thresholdSet();
         }
     }
 
 // every element that is reachable from another element is either the null pointer or part of the list.
-invariant reachableInList(address wallet)
-    (forall address X. forall address Y. reach(wallet, X, Y) => X == Y || Y == 0 || ghostGuardians[wallet][Y] != 0)
+invariant reachableInList()
+    (forall address wallet. forall address X. forall address Y. reach(wallet, X, Y) => X == Y || Y == 0 || ghostGuardians[wallet][Y] != 0)
     {
         preserved {
-            requireInvariant reach_invariant(wallet);
-            requireInvariant reach_null(wallet);
-            requireInvariant inListReachable(wallet);
-            requireInvariant reach_next(wallet);
-            requireInvariant nextNull(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant reach_invariant();
+            requireInvariant reach_null();
+            requireInvariant inListReachable();
+            requireInvariant reach_next();
+            requireInvariant nextNull();
+            // requireInvariant thresholdSet();
         }
     }
 
 // reach encodes a linear order. This axiom corresponds to Table 2 in [1].
-invariant reach_invariant(address wallet)
-    forall address X. forall address Y. forall address Z. (
+invariant reach_invariant()
+    forall address wallet. forall address X. forall address Y. forall address Z. (
         reach(wallet, X, X)
         && (reach(wallet, X, Y) && reach(wallet, Y, X) => X == Y)
         && (reach(wallet, X, Y) && reach(wallet, Y, Z) => reach(wallet, X, Z))
@@ -132,50 +133,49 @@ invariant reach_invariant(address wallet)
     )
     {
         preserved {
-            requireInvariant reach_null(wallet);
-            requireInvariant inListReachable(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant reachHeadNext(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant reach_null();
+            requireInvariant inListReachable();
+            requireInvariant reachableInList();
+            requireInvariant reachHeadNext();
+            // requireInvariant thresholdSet();
         }
     }
 
 // every element with non-zero guardian field is reachable from SENTINEL (head of the list)
-invariant inListReachable(address wallet)
-    (forall address key. ghostGuardians[wallet][key] != 0 => reach(wallet, SENTINEL, key))
+invariant inListReachable()
+    (forall address wallet. forall address key. ghostGuardians[wallet][key] != 0 => reach(wallet, SENTINEL, key))
     {
         preserved {
-            requireInvariant thresholdSet(wallet);
-            requireInvariant reach_invariant(wallet);
-            requireInvariant reach_null(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant reach_invariant();
+            requireInvariant reach_null();
+            requireInvariant reachableInList();
+            // requireInvariant thresholdSet();
         }
     }
 
-invariant reachHeadNext(address wallet)
-    forall address X. (reach(wallet, SENTINEL, X) && X != SENTINEL && X != NULL) =>
+invariant reachHeadNext()
+    forall address wallet. forall address X. (reach(wallet, SENTINEL, X) && X != SENTINEL && X != NULL) =>
            (ghostGuardians[wallet][SENTINEL] != SENTINEL && reach(wallet, ghostGuardians[wallet][SENTINEL], X))
     {
         preserved {
-            requireInvariant inListReachable(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant reach_invariant(wallet);
-            requireInvariant reach_null(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant inListReachable();
+            requireInvariant reachableInList();
+            requireInvariant reach_invariant();
+            requireInvariant reach_null();
+            // requireInvariant thresholdSet();
         }
     }
 
 // every element reaches its direct successor (except for the tail-SENTINEL).
-invariant reach_next(address wallet)
-    forall address X. reach_succ(wallet, X, ghostGuardians[wallet][X])
+invariant reach_next()
+    forall address wallet. forall address X. reach_succ(wallet, X, ghostGuardians[wallet][X])
     {
         preserved {
-            requireInvariant inListReachable(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant reach_null(wallet);
-            requireInvariant reach_invariant(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant inListReachable();
+            requireInvariant reachableInList();
+            requireInvariant reach_null();
+            requireInvariant reach_invariant();
+            // requireInvariant thresholdSet();
         }
     }
 
@@ -209,18 +209,18 @@ definition updateGhostSuccCount(address wallet, address key, mathint diff) retur
 // in storage is written.
 // This also checks that the reach_succ invariant is preserved.
 hook Sstore currentContract.entries[KEY address wallet].guardians[KEY address key] address value {
-    address valueOrNull;
-    address someKey;
-    address someWallet;
-    require reach_succ(someWallet, someKey, ghostGuardians[someWallet][someKey]);
-    require ghostSuccCount(someWallet, someKey) == count_expected(someWallet, someKey);
+    // address valueOrNull;
+    // address someKey;
+    // address someWallet;
+    // require reach_succ(someWallet, someKey, ghostGuardians[someWallet][someKey]);
+    // require ghostSuccCount(someWallet, someKey) == count_expected(someWallet, someKey);
     assert reach(wallet, value, key) => value == SENTINEL, "list is cyclic";
     ghostGuardians[wallet][key] = value;
     havoc reach assuming updateSucc(wallet, key, next_or_null(value));
     mathint countDiff = count_expected(wallet, key) - ghostSuccCount(wallet, key);
     havoc ghostSuccCount assuming updateGhostSuccCount(wallet, key, countDiff);
-    assert reach_succ(someWallet, someKey, ghostGuardians[someWallet][someKey]), "reach_succ violated after guardians update";
-    assert ghostSuccCount(someWallet, someKey) == count_expected(someWallet, someKey);
+    // assert reach_succ(someWallet, someKey, ghostGuardians[someWallet][someKey]), "reach_succ violated after guardians update";
+    // assert ghostSuccCount(someWallet, someKey) == count_expected(someWallet, someKey);
 }
 
 hook Sstore currentContract.entries[KEY address wallet].count uint256 value {
@@ -242,52 +242,67 @@ hook Sload uint256 value currentContract.entries[KEY address wallet].count {
     require ghostGuardianCount[wallet] == value;
 }
 
-invariant reachCount(address wallet)
-    forall address X. forall address Y. reach(wallet, X, Y) =>
+invariant reachCount()
+    forall address wallet. forall address X. forall address Y. reach(wallet, X, Y) =>
         ghostSuccCount(wallet, X) >= ghostSuccCount(wallet, Y)
     {
         preserved {
-            requireInvariant reach_invariant(wallet);
-            requireInvariant reach_null(wallet);
-            requireInvariant inListReachable(wallet);
-            requireInvariant reach_next(wallet);
-            requireInvariant nextNull(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant reachHeadNext(wallet);
-            requireInvariant thresholdSet(wallet);
-            requireInvariant count_correct(wallet);
+            requireInvariant reach_invariant();
+            requireInvariant reach_null();
+            requireInvariant inListReachable();
+            requireInvariant reach_next();
+            requireInvariant nextNull();
+            requireInvariant reachableInList();
+            requireInvariant reachHeadNext();
+            // requireInvariant thresholdSet();
+            requireInvariant count_correct();
         }
     }
 
-invariant count_correct(address wallet)
-    forall address X. ghostSuccCount(wallet, X) == count_expected(wallet, X)
+invariant count_correct()
+    forall address wallet. forall address X. ghostSuccCount(wallet, X) == count_expected(wallet, X)
     {
         preserved {
-            requireInvariant reach_invariant(wallet);
-            requireInvariant reach_null(wallet);
-            requireInvariant inListReachable(wallet);
-            requireInvariant reach_next(wallet);
-            requireInvariant nextNull(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant reachHeadNext(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant reach_invariant();
+            requireInvariant reach_null();
+            requireInvariant inListReachable();
+            requireInvariant reach_next();
+            requireInvariant nextNull();
+            requireInvariant reachableInList();
+            requireInvariant reachHeadNext();
+            // requireInvariant thresholdSet();
         }
     }
 
-
-invariant guardiancount_correct(address wallet)
-   (ghostGuardianCount[wallet] == 0 && ghostGuardians[wallet][SENTINEL] == NULL) || (ghostSuccCount(wallet, SENTINEL) == ghostGuardianCount[wallet] + 1)
+invariant guardiancount_correct()
+   forall address wallet. (ghostGuardianCount[wallet] == 0 && ghostGuardians[wallet][SENTINEL] == NULL) || (ghostSuccCount(wallet, SENTINEL) == ghostGuardianCount[wallet] + 1)
     {
         preserved {
-            requireInvariant reach_invariant(wallet);
-            requireInvariant reach_null(wallet);
-            requireInvariant inListReachable(wallet);
-            requireInvariant reach_next(wallet);
-            requireInvariant nextNull(wallet);
-            requireInvariant reachableInList(wallet);
-            requireInvariant reachHeadNext(wallet);
-            requireInvariant reachCount(wallet);
-            requireInvariant thresholdSet(wallet);
+            requireInvariant reach_invariant();
+            requireInvariant reach_null();
+            requireInvariant inListReachable();
+            requireInvariant reach_next();
+            requireInvariant nextNull();
+            requireInvariant reachableInList();
+            requireInvariant reachHeadNext();
+            requireInvariant reachCount();
+            // requireInvariant thresholdSet();
+        }
+    }
+
+invariant ghostGuardianCountZero()
+    forall address wallet. ghostGuardianCount[wallet] == 0 => ghostGuardians[wallet][SENTINEL] == NULL || ghostGuardians[wallet][SENTINEL] == SENTINEL
+    {
+        preserved {
+            requireInvariant reach_invariant();
+            requireInvariant reach_null();
+            requireInvariant inListReachable();
+            requireInvariant reach_next();
+            requireInvariant nextNull();
+            requireInvariant reachableInList();
+            requireInvariant reachHeadNext();
+            requireInvariant reachCount();
+            // requireInvariant thresholdSet();
         }
     }
 
@@ -300,7 +315,7 @@ rule isGuardianDoesNotRevert {
 rule isGuardianNotSelfOrSentinal {
     address addr;
     require addr == currentContract || addr == SENTINEL;
-    requireInvariant self_not_guardian(safeContract);
+    requireInvariant self_not_guardian();
     bool result = isGuardian(safeContract, addr);
     assert result == false, "currentContract or SENTINEL must not be guardian";
 }
@@ -321,10 +336,13 @@ rule addGuardianChangesEntries {
     env e;
     require safeContract.isModuleEnabled(e.msg.sender);
 
-    requireInvariant reach_null(safeContract);
-    requireInvariant reach_invariant(safeContract);
-    requireInvariant inListReachable(safeContract);
-    requireInvariant reachableInList(safeContract);
+    requireInvariant reach_null();
+    requireInvariant reach_invariant();
+    requireInvariant inListReachable();
+    requireInvariant reachableInList();
+    requireInvariant reachCount();
+    requireInvariant count_correct();
+    requireInvariant guardiancount_correct();
     require other != toAdd;
     bool isGuardianOtherBefore = isGuardian(safeContract, other);
     addGuardian(e, safeContract, toAdd);
@@ -342,10 +360,10 @@ rule removeGuardianChangesGuardians {
     env e;
     require safeContract.isModuleEnabled(e.msg.sender);
 
-    requireInvariant reach_null(safeContract);
-    requireInvariant reach_invariant(safeContract);
-    requireInvariant inListReachable(safeContract);
-    requireInvariant reachableInList(safeContract);
+    requireInvariant reach_null();
+    requireInvariant reach_invariant();
+    requireInvariant inListReachable();
+    requireInvariant reachableInList();
     require other != toRemove;
     bool isGuardianOtherBefore = isGuardian(safeContract, other);
     revokeGuardian(e, safeContract, prevGuardian, toRemove);
