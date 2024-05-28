@@ -11,6 +11,7 @@ methods {
     function nonce(address) external returns (uint256) envfree;
     function encodeRecoveryDataHash(address, address[], uint256, uint256) external returns (bytes32) envfree;
     function getRecoveryApprovals(address, address[], uint256) external returns (uint256) envfree;
+    function hasGuardianApproved(address, address, address[], uint256) external returns (bool) envfree;
 
     // Guardian Storage Functions
     function guardianStorageContract.countGuardians(address) external returns (uint256) envfree;
@@ -290,4 +291,28 @@ rule disabledRecoveryModuleResultsInFinalizationRevert(env e) {
         (currentOwners[0] == safeContract.getOwners()[0] &&
             safeContract.getOwners().length == 1 &&
             currentThreshold == safeContract.getThreshold());
+}
+
+// This rule verifies that a guardian can only initiate recovery for the safe account it has been assigned to.
+// Here we only check initiation, and not execution of recovery.
+rule guardiansCanInitiateRecoveryForAssignedAccount(env e, address guardian, address[] newOwners, uint256 newThreshold) {
+    require e.msg.sender == guardian;
+    require e.msg.value == 0;
+    require newOwners.length > 0;
+    require newThreshold > 0 && newThreshold <= newOwners.length;
+    // This is required as FV might have a value beyond 2^160 for address in the newOwners.
+    require forall uint256 i. 0 <= i && i < newOwners.length => to_mathint(newOwners[i]) < 2^160;
+
+    // Here we are only focusing on the initiation and not the execution of the recovery, thus execute
+    // parameter is passed as false.
+    currentContract.confirmRecovery@withrevert(e, safeContract, newOwners, newThreshold, false);
+    bool isReverted = lastReverted;
+
+    // This checks the guardian cannot initiate recovery for account not assigned by safe account.
+    assert isReverted => !currentContract.isGuardian(safeContract, guardian);
+    // This checks if recovery initiated, then the caller was a guardian of that safe account and has
+    // successfully initiated the process.
+    assert !isReverted =>
+        currentContract.isGuardian(safeContract, guardian) &&
+        currentContract.hasGuardianApproved(safeContract, guardian, newOwners, newThreshold);
 }
