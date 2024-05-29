@@ -345,7 +345,7 @@ rule addGuardianChangesEntries {
     requireInvariant guardiancount_correct();
     require other != toAdd;
     bool isGuardianOtherBefore = isGuardian(safeContract, other);
-    addGuardian(e, safeContract, toAdd);
+    addGuardianWithThreshold(e, safeContract, toAdd, threshold);
 
     assert isGuardian(safeContract, toAdd), "addGuardian should add the given guardian";
     assert isGuardian(safeContract, other) == isGuardianOtherBefore, "addGuardian should not remove or add other guardians";
@@ -366,7 +366,7 @@ rule removeGuardianChangesGuardians {
     requireInvariant reachableInList();
     require other != toRemove;
     bool isGuardianOtherBefore = isGuardian(safeContract, other);
-    revokeGuardian(e, safeContract, prevGuardian, toRemove);
+    revokeGuardianWithThreshold(e, safeContract, prevGuardian, toRemove, threshold);
 
     assert !isGuardian(safeContract, toRemove), "revokeGuardian should remove the given guardian";
     assert isGuardian(safeContract, other) == isGuardianOtherBefore, "revokeGuardian should not remove or add other guardians";
