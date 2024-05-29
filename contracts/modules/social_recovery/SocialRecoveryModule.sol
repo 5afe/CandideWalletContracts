@@ -40,8 +40,6 @@ contract SocialRecoveryModule {
     // Recovery period
     uint256 internal immutable recoveryPeriod;
 
-    event GuardianAdded(address indexed wallet, address indexed guardian, uint256 threshold);
-    event GuardianRevoked(address indexed wallet, address indexed guardian, uint256 threshold);
     event RecoveryExecuted(address indexed wallet, address[] indexed newOwners, uint256 newThreshold, uint256 nonce, uint64 executeAfter, uint256 guardiansApprovalCount);
     event RecoveryFinalized(address indexed wallet, address[] indexed newOwners, uint256 newThreshold, uint256 nonce);
     event RecoveryCanceled(address indexed wallet, uint256 nonce);
@@ -59,14 +57,6 @@ contract SocialRecoveryModule {
      */
     modifier whenRecovery(address _wallet) {
         require(recoveryRequests[_wallet].executeAfter > 0, "SM: no ongoing recovery");
-        _;
-    }
-
-    /**
-     * @notice Throws if there is an ongoing recovery request.
-     */
-    modifier whenNotRecovery(address _wallet) {
-        require(recoveryRequests[_wallet].executeAfter == 0, "SM: ongoing recovery");
         _;
     }
 
@@ -313,9 +303,7 @@ contract SocialRecoveryModule {
      * @param _threshold The new threshold that will be set after addition.
      */
     function addGuardianWithThreshold(address _wallet, address _guardian, uint256 _threshold) external authorized(_wallet) {
-        guardianStorage.addGuardian(_wallet, _guardian);
-        guardianStorage.changeThreshold(_wallet, _threshold);
-        emit GuardianAdded(_wallet, _guardian, _threshold);
+        guardianStorage.addGuardianWithThreshold(_wallet, _guardian, _threshold);
     }
 
     /**
@@ -323,21 +311,16 @@ contract SocialRecoveryModule {
      * @param _wallet The target wallet.
      * @param _prevGuardian The previous guardian linking to the guardian in the linked list.
      * @param _guardian The guardian to revoke.
-     * @param _threshold The new threshold that will be set after execution of revokation.
+     * @param _threshold The new threshold that will be set after execution of revocation.
      */
     function revokeGuardianWithThreshold(address _wallet, address _prevGuardian, address _guardian, uint256 _threshold) external authorized(_wallet) {
-        require(isGuardian(_wallet, _guardian), "SM: must be existing guardian");
-        uint256 _guardiansCount = guardianStorage.guardiansCount(_wallet);
-        require(_guardiansCount - 1 >= _threshold, "SM: invalid threshold");
-        guardianStorage.revokeGuardian(_wallet, _prevGuardian, _guardian);
-        guardianStorage.changeThreshold(_wallet, _threshold);
-        emit GuardianRevoked(_wallet, _guardian, _threshold);
+        guardianStorage.revokeGuardianWithThreshold(_wallet, _prevGuardian, _guardian, _threshold);
     }
 
     /**
      * @notice Lets the owner change the guardian threshold required to initiate a recovery.
      * @param _wallet The target wallet.
-     * @param _threshold The new threshold that will be set after execution of revokation.
+     * @param _threshold The new threshold that will be set after execution of revocation.
      */
     function changeThreshold(address _wallet, uint256 _threshold) external authorized(_wallet) {
         guardianStorage.changeThreshold(_wallet, _threshold);
