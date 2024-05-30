@@ -2,7 +2,7 @@
  * Spec for linked list reachability for Guardians.
  * This file is derived from OwnerReach.spec for a Safe account.
  * https://github.com/safe-global/safe-smart-account/blob/main/certora/specs/OwnerReach.spec
- * 
+ *
  * This file uses a reach predicate:
  *    ghost reach(address, address, address) returns bool
  * to represent the transitive of the next
@@ -78,6 +78,7 @@ invariant self_not_guardian()
             requireInvariant reach_invariant();
             requireInvariant inListReachable();
             requireInvariant reachableInList();
+            requireInvariant countZeroIffListEmpty();
             // requireInvariant thresholdSet();
         }
     }
@@ -119,6 +120,7 @@ invariant reachableInList()
             requireInvariant inListReachable();
             requireInvariant reach_next();
             requireInvariant nextNull();
+            requireInvariant countZeroIffListEmpty();
             // requireInvariant thresholdSet();
         }
     }
@@ -149,6 +151,8 @@ invariant inListReachable()
             requireInvariant reach_invariant();
             requireInvariant reach_null();
             requireInvariant reachableInList();
+            requireInvariant countZeroIffListEmpty();
+            requireInvariant emptyListNotReachable();
             // requireInvariant thresholdSet();
         }
     }
@@ -162,6 +166,8 @@ invariant reachHeadNext()
             requireInvariant reachableInList();
             requireInvariant reach_invariant();
             requireInvariant reach_null();
+            requireInvariant countZeroIffListEmpty();
+            requireInvariant emptyListNotReachable();
             // requireInvariant thresholdSet();
         }
     }
@@ -187,13 +193,13 @@ definition next_or_null(address n) returns address = n == SENTINEL ? NULL : n;
 
 // Invariant stating that the guardians storage pointers correspond to the next relation, except for the SENTINEL tail marker.
 definition reach_succ(address wallet, address key, address next) returns bool =
-        (isSucc(wallet, key, next_or_null(next))) ||
-        (next == NULL && key == NULL);
+        (key != NULL && isSucc(wallet, key, next_or_null(next))) ||
+        (key == NULL && next == NULL && (forall address Z. reach(wallet, key, Z) => Z == NULL));
 
 // Update the reach relation when the next pointer of a is changed to b.
 // This corresponds to the first two equations in Table 3 [1] (destructive update to break previous paths through a and
 // then additionally allow the path to go through the new edge from a to b).
-definition updateSucc(address wallet, address a, address b) returns bool = 
+definition updateSucc(address wallet, address a, address b) returns bool =
    forall address W. forall address X. forall address Y. reach@new(W, X, Y) ==
             (X == Y ||
             (reach@old(W, X, Y) && !(W == wallet && reach@old(W, X, a) && a != Y && reach@old(W, a, Y))) ||
@@ -209,18 +215,12 @@ definition updateGhostSuccCount(address wallet, address key, mathint diff) retur
 // in storage is written.
 // This also checks that the reach_succ invariant is preserved.
 hook Sstore currentContract.entries[KEY address wallet].guardians[KEY address key] address value {
-    // address valueOrNull;
-    // address someKey;
-    // address someWallet;
-    // require reach_succ(someWallet, someKey, ghostGuardians[someWallet][someKey]);
-    // require ghostSuccCount(someWallet, someKey) == count_expected(someWallet, someKey);
+    assert key != NULL;
     assert reach(wallet, value, key) => value == SENTINEL, "list is cyclic";
     ghostGuardians[wallet][key] = value;
     havoc reach assuming updateSucc(wallet, key, next_or_null(value));
     mathint countDiff = count_expected(wallet, key) - ghostSuccCount(wallet, key);
     havoc ghostSuccCount assuming updateGhostSuccCount(wallet, key, countDiff);
-    // assert reach_succ(someWallet, someKey, ghostGuardians[someWallet][someKey]), "reach_succ violated after guardians update";
-    // assert ghostSuccCount(someWallet, someKey) == count_expected(someWallet, someKey);
 }
 
 hook Sstore currentContract.entries[KEY address wallet].count uint256 value {
@@ -256,6 +256,8 @@ invariant reachCount()
             requireInvariant reachHeadNext();
             // requireInvariant thresholdSet();
             requireInvariant count_correct();
+            requireInvariant countZeroIffListEmpty();
+            requireInvariant emptyListNotReachable();
         }
     }
 
@@ -290,8 +292,9 @@ invariant guardiancount_correct()
         }
     }
 
-invariant ghostGuardianCountZero()
-    forall address wallet. ghostGuardianCount[wallet] == 0 => ghostGuardians[wallet][SENTINEL] == NULL || ghostGuardians[wallet][SENTINEL] == SENTINEL
+invariant countZeroIffListEmpty()
+    forall address wallet. ghostGuardianCount[wallet] == 0 <=>
+        (ghostGuardians[wallet][SENTINEL] == NULL || ghostGuardians[wallet][SENTINEL] == SENTINEL)
     {
         preserved {
             requireInvariant reach_invariant();
@@ -302,9 +305,58 @@ invariant ghostGuardianCountZero()
             requireInvariant reachableInList();
             requireInvariant reachHeadNext();
             requireInvariant reachCount();
-            // requireInvariant thresholdSet();
+            requireInvariant count_correct();
+            requireInvariant guardiancount_correct();
         }
     }
+
+invariant emptyListNotReachable()
+    forall address wallet. (ghostGuardians[wallet][SENTINEL] == NULL || ghostGuardians[wallet][SENTINEL] == SENTINEL)
+        => (forall address X. X != SENTINEL => ghostGuardians[wallet][X] == NULL)
+    {
+        preserved {
+            requireInvariant reach_invariant();
+            requireInvariant reach_null();
+            requireInvariant inListReachable();
+            requireInvariant reach_next();
+            requireInvariant nextNull();
+            requireInvariant reachableInList();
+            requireInvariant reachHeadNext();
+            requireInvariant reachCount();
+            requireInvariant count_correct();
+            requireInvariant guardiancount_correct();
+        }
+    }
+
+rule storeHookPreservesInvariants(address wallet, address key, address value) {
+    // These are checked in the hook.
+    require key != NULL;
+    require reach(wallet, value, key) => value == SENTINEL; //, "list is cyclic";
+
+    // Invariants that hold even in the middle
+    requireInvariant reach_null();
+    requireInvariant reach_invariant();
+
+    address someKey;
+    address someWallet;
+    require reach_succ(someWallet, someKey, ghostGuardians[someWallet][someKey]);
+    require ghostSuccCount(someWallet, someKey) == count_expected(someWallet, someKey);
+    ghostGuardians[wallet][key] = value;
+    havoc reach assuming updateSucc(wallet, key, next_or_null(value));
+    mathint countDiff = count_expected(wallet, key) - ghostSuccCount(wallet, key);
+    havoc ghostSuccCount assuming updateGhostSuccCount(wallet, key, countDiff);
+    assert reach_succ(someWallet, someKey, ghostGuardians[someWallet][someKey]), "reach_succ violated after guardians update";
+    assert ghostSuccCount(someWallet, someKey) == count_expected(someWallet, someKey);
+
+    // assert also the invariants used above
+    assert (forall address W. forall address X. reach(W, X, NULL));
+    assert (forall address W. forall address X. forall address Y. forall address Z.
+        reach(W, X, X)
+        && (reach(W, X, Y) && reach(W, Y, X) => X == Y)
+        && (reach(W, X, Y) && reach(W, Y, Z) => reach(W, X, Z))
+        && (reach(W, X, Y) && reach(W, X, Z) => (reach(W, Y, Z) || reach(W, Z, Y)))
+    );
+}
 
 rule isGuardianDoesNotRevert {
     address addr;
@@ -340,9 +392,7 @@ rule addGuardianChangesEntries {
     requireInvariant reach_invariant();
     requireInvariant inListReachable();
     requireInvariant reachableInList();
-    requireInvariant reachCount();
-    requireInvariant count_correct();
-    requireInvariant guardiancount_correct();
+    requireInvariant countZeroIffListEmpty();
     require other != toAdd;
     bool isGuardianOtherBefore = isGuardian(safeContract, other);
     addGuardianWithThreshold(e, safeContract, toAdd, threshold);
