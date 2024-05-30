@@ -55,6 +55,8 @@ function requireGuardiansLinkedListIntegrity(address guardian) {
     require index < guardianStorageContract.entries[safeContract].count;
     require currentContract.isGuardian(safeContract, guardian) =>
         guardianStorageContract.getGuardians(safeContract)[index] == guardian;
+    require !currentContract.isGuardian(safeContract, guardian) =>
+        (forall address prevGuardian. guardianStorageContract.entries[safeContract].guardians[prevGuardian] != guardian);
     require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 }
 
@@ -65,6 +67,11 @@ function requireGuardiansLinkedListIntegrity(address guardian) {
 // - and no other account (guardian or not) is affected.
 rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, address otherAccount) {
     requireGuardiansLinkedListIntegrity(guardian);
+
+    // If threshold is same as before, then no change is made to the threshold during guardian addition.
+    // Thus, it is required to add this check to ensure no initial state have threshold > count.
+    require threshold == guardianStorageContract.entries[safeContract].threshold =>
+        guardianStorageContract.entries[safeContract].threshold <= guardianStorageContract.entries[safeContract].count;
 
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
