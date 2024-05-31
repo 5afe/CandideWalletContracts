@@ -18,20 +18,20 @@ methods {
     function safeContract.isOwner(address owner) external returns (bool) envfree;
 
     // Wildcard Functions (Because of use of ISafe interface in Social Recovery Module)
-    function _.isModuleEnabled(address module) external => safeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
-    function _.isOwner(address owner) external => sumarizeSafeIsOwner(calledContract, owner) expect bool ALL;
+    function _.isModuleEnabled(address module) external => summarizeSafeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
+    function _.isOwner(address owner) external => summarizeSafeIsOwner(calledContract, owner) expect bool ALL;
 }
 
 // A summary function that asserts that all `ISafe.isModuleEnabled` calls are done
 // to the `safeContract`, returning the same result as `safeContract.isModuleEnabled(...)`.
-function safeIsModuleEnabled(address callee, address module) returns bool {
+function summarizeSafeIsModuleEnabled(address callee, address module) returns bool {
     assert callee == safeContract;
     return safeContract.isModuleEnabled(module);
 }
 
 // A summary function that asserts that all `ISafe.isOwner` calls are done
 // to the `safeContract`, returning the same result as `safeContract.isOwner(...)`.
-function sumarizeSafeIsOwner(address callee, address owner) returns bool {
+function summarizeSafeIsOwner(address callee, address owner) returns bool {
     assert callee == safeContract;
     return safeContract.isOwner(owner);
 }
@@ -195,6 +195,8 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
 
 // This integrity rule verifies the possibilites in which the revocation of a new guardian can revert.
 rule revokeGuardianRevertPossibilities(env e, address prevGuardian, address guardian, uint256 threshold) {
+    requireGuardiansLinkedListIntegrity(guardian);
+
     bool isGuardian = currentContract.isGuardian(safeContract, guardian);
 
     currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, guardian, threshold);
@@ -206,7 +208,6 @@ rule revokeGuardianRevertPossibilities(env e, address prevGuardian, address guar
         e.msg.value != 0 ||
         guardian == 0 ||
         guardian == SENTINEL() ||
-        guardianStorageContract.entries[safeContract].count == 0 ||
         !safeContract.isModuleEnabled(currentContract) ||
         guardianStorageContract.entries[safeContract].guardians[prevGuardian] != guardian ||
         to_mathint(threshold) > guardianStorageContract.entries[safeContract].count - 1 ||
