@@ -19,7 +19,6 @@ methods {
     // Safe Functions
     function safeContract.isModuleEnabled(address module) external returns (bool) envfree;
     function safeContract.isOwner(address owner) external returns (bool) envfree;
-    function safeContract.getOwners() external returns (address[] memory) envfree;
 
     // Wildcard Functions (Because of use of ISafe interface in Social Recovery Module)
     function _.isModuleEnabled(address module) external => summarizeSafeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
