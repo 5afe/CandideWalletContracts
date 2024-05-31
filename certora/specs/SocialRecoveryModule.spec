@@ -159,7 +159,7 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     assert !currentContract.isGuardian(safeContract, guardian);
     assert guardianStorageContract.entries[safeContract].guardians[prevGuardian] == nextGuardian;
     assert guardian != otherAccount => otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
-    assert currentGuardiansCount > 0 => currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
+    assert currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
     assert threshold <= guardianStorageContract.entries[safeContract].count;
 }
 
