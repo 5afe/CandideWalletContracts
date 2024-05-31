@@ -9,7 +9,7 @@ methods {
     function guardiansCount(address) external returns (uint256) envfree;
     function threshold(address) external returns (uint256) envfree;
     function nonce(address) external returns (uint256) envfree;
-    function encodeRecoveryDataHash(address, address[], uint256, uint256) external returns (bytes32) envfree;
+    function getRecoveryHash(address, address[], uint256, uint256) external returns (bytes32) envfree;
     function getRecoveryApprovals(address, address[], uint256) external returns (uint256) envfree;
 
     // Guardian Storage Functions
@@ -23,22 +23,22 @@ methods {
     function safeContract.getThreshold() external returns (uint256) envfree;
 
     // Wildcard Functions (Because of use of ISafe interface in Social Recovery Module)
-    function _.isModuleEnabled(address module) external => safeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
-    function _.isOwner(address owner) external => sumarizeSafeIsOwner(calledContract, owner) expect bool ALL;
+    function _.isModuleEnabled(address module) external => summarizeSafeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
+    function _.isOwner(address owner) external => summarizeSafeIsOwner(calledContract, owner) expect bool ALL;
     function _.getOwners() external => sumarizeSafeGetOwners(calledContract) expect address[] ALL;
     function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external => summarizeSafeExecTransactionFromModule(calledContract) expect bool ALL;
 }
 
 // A summary function that asserts that all `ISafe.isModuleEnabled` calls are done
 // to the `safeContract`, returning the same result as `safeContract.isModuleEnabled(...)`.
-function safeIsModuleEnabled(address callee, address module) returns bool {
+function summarizeSafeIsModuleEnabled(address callee, address module) returns bool {
     assert callee == safeContract;
     return safeContract.isModuleEnabled(module);
 }
 
 // A summary function that asserts that all `ISafe.isOwner` calls are done
 // to the `safeContract`, returning the same result as `safeContract.isOwner(...)`.
-function sumarizeSafeIsOwner(address callee, address owner) returns bool {
+function summarizeSafeIsOwner(address callee, address owner) returns bool {
     assert callee == safeContract;
     return safeContract.isOwner(owner);
 }
@@ -181,7 +181,7 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     assert !currentContract.isGuardian(safeContract, guardian);
     assert guardianStorageContract.entries[safeContract].guardians[prevGuardian] == nextGuardian;
     assert guardian != otherAccount => otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
-    assert currentGuardiansCount > 0 => currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
+    assert currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
     assert threshold <= guardianStorageContract.entries[safeContract].count;
 }
 
@@ -217,6 +217,8 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
 
 // This integrity rule verifies the possibilites in which the revocation of a new guardian can revert.
 rule revokeGuardianRevertPossibilities(env e, address prevGuardian, address guardian, uint256 threshold) {
+    requireGuardiansLinkedListIntegrity(guardian);
+
     bool isGuardian = currentContract.isGuardian(safeContract, guardian);
 
     currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, guardian, threshold);
@@ -226,9 +228,6 @@ rule revokeGuardianRevertPossibilities(env e, address prevGuardian, address guar
         !isGuardian ||
         e.msg.sender != safeContract ||
         e.msg.value != 0 ||
-        guardian == 0 ||
-        guardian == SENTINEL() ||
-        guardianStorageContract.entries[safeContract].count == 0 ||
         !safeContract.isModuleEnabled(currentContract) ||
         guardianStorageContract.entries[safeContract].guardians[prevGuardian] != guardian ||
         to_mathint(threshold) > guardianStorageContract.entries[safeContract].count - 1 ||
@@ -257,7 +256,7 @@ rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, addr
     uint256 nonce = currentContract.nonce(safeContract);
     require nonce < max_uint256;
 
-    bytes32 recoveryHash = currentContract.encodeRecoveryDataHash(safeContract, newOwners, newThreshold, nonce);
+    bytes32 recoveryHash = currentContract.getRecoveryHash(safeContract, newOwners, newThreshold, nonce);
     // This ensures that the recovery is not already initiated.
     require currentContract.recoveryRequests[safeContract].executeAfter == 0;
 
