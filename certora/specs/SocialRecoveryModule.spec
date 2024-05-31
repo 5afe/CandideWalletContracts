@@ -9,7 +9,7 @@ methods {
     function guardiansCount(address) external returns (uint256) envfree;
     function threshold(address) external returns (uint256) envfree;
     function nonce(address) external returns (uint256) envfree;
-    function encodeRecoveryDataHash(address, address[], uint256, uint256) external returns (bytes32) envfree;
+    function getRecoveryHash(address, address[], uint256, uint256) external returns (bytes32) envfree;
     function getRecoveryApprovals(address, address[], uint256) external returns (uint256) envfree;
 
     // Guardian Storage Functions
@@ -239,7 +239,7 @@ rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, addr
     uint256 nonce = currentContract.nonce(safeContract);
     require nonce < max_uint256;
 
-    bytes32 recoveryHash = currentContract.encodeRecoveryDataHash(safeContract, newOwners, newThreshold, nonce);
+    bytes32 recoveryHash = currentContract.getRecoveryHash(safeContract, newOwners, newThreshold, nonce);
     // This ensures that the recovery is not already initiated.
     require currentContract.recoveryRequests[safeContract].executeAfter == 0;
 
