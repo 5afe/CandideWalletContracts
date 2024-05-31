@@ -206,8 +206,6 @@ rule revokeGuardianRevertPossibilities(env e, address prevGuardian, address guar
         !isGuardian ||
         e.msg.sender != safeContract ||
         e.msg.value != 0 ||
-        guardian == 0 ||
-        guardian == SENTINEL() ||
         !safeContract.isModuleEnabled(currentContract) ||
         guardianStorageContract.entries[safeContract].guardians[prevGuardian] != guardian ||
         to_mathint(threshold) > guardianStorageContract.entries[safeContract].count - 1 ||
