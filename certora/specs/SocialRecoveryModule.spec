@@ -25,7 +25,7 @@ methods {
     // Wildcard Functions (Because of use of ISafe interface in Social Recovery Module)
     function _.isModuleEnabled(address module) external => summarizeSafeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
     function _.isOwner(address owner) external => summarizeSafeIsOwner(calledContract, owner) expect bool ALL;
-    function _.getOwners() external => sumarizeSafeGetOwners(calledContract) expect address[] ALL;
+    function _.getOwners() external => summarizeSafeGetOwners(calledContract) expect address[] ALL;
     function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external => summarizeSafeExecTransactionFromModule(calledContract) expect bool ALL;
 }
 
@@ -45,7 +45,7 @@ function summarizeSafeIsOwner(address callee, address owner) returns bool {
 
 // A summary function that asserts that all `ISafe.getOwners` calls are done
 // to the `safeContract`, returning the same result as `safeContract.getOwners()`.
-function sumarizeSafeGetOwners(address callee) returns address[] {
+function summarizeSafeGetOwners(address callee) returns address[] {
     assert callee == safeContract;
     return safeContract.getOwners();
 }
@@ -285,14 +285,15 @@ rule disabledRecoveryModuleResultsInFinalizationRevert(env e) {
     require !safeContract.isModuleEnabled(currentContract);
 
     currentContract.finalizeRecovery@withrevert(e, safeContract);
-    bool finalizeRecoveryIsReverted = lastReverted;
+    bool isReverted = lastReverted;
 
     // If the recovery finalization is initiated with the safe having only one owner,
     // and the finalize recovery initiated with no new owners and zero as new threshold,
+    // or with the same last owner of safe and threshold == newThreshold == 1,
     // then the finalize recovery call goes through, as no owner is removed and no new
     // owner is added. Though it is not possible to have a recovery initiation with zero
     // owners.
-    assert finalizeRecoveryIsReverted ||
+    assert isReverted ||
         (currentOwners[0] == safeContract.getOwners()[0] &&
             safeContract.getOwners().length == 1 &&
             currentThreshold == safeContract.getThreshold());
