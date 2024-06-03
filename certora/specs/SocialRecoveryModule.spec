@@ -303,12 +303,19 @@ rule disabledRecoveryModuleResultsInFinalizationRevert(env e) {
 // This rule verifies that a guardian can only initiate recovery for the safe account it has been assigned to.
 // Here we only check initiation, and not execution of recovery.
 rule guardiansCanInitiateRecoveryForAssignedAccount(env e, address guardian, address[] newOwners, uint256 newThreshold) {
+    requireGuardiansLinkedListIntegrity(guardian);
+
     require e.msg.sender == guardian;
     require e.msg.value == 0;
     require newOwners.length > 0;
     require newThreshold > 0 && newThreshold <= newOwners.length;
     // This is required as FV might have a value beyond 2^160 for address in the newOwners.
     require forall uint256 i. 0 <= i && i < newOwners.length => to_mathint(newOwners[i]) < 2^160;
+
+    // The guardian can call the confirmRecovery twice with the same parameters, thus we check if the guardian had
+    // already confirmed the recovery.
+    bool guardianConfirmed = currentContract.hasGuardianApproved(safeContract, guardian, newOwners, newThreshold);
+    uint256 currentApprovals = currentContract.getRecoveryApprovals(safeContract, newOwners, newThreshold);
 
     // Here we are only focusing on the initiation and not the execution of the recovery, thus execute
     // parameter is passed as false.
@@ -321,5 +328,6 @@ rule guardiansCanInitiateRecoveryForAssignedAccount(env e, address guardian, add
     // successfully initiated the process.
     assert !isReverted =>
         currentContract.isGuardian(safeContract, guardian) &&
-        currentContract.hasGuardianApproved(safeContract, guardian, newOwners, newThreshold);
+        currentContract.hasGuardianApproved(safeContract, guardian, newOwners, newThreshold) &&
+        (guardianConfirmed || to_mathint(currentContract.getRecoveryApprovals(safeContract, newOwners, newThreshold)) == currentApprovals + 1);
 }
