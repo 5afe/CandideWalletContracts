@@ -47,7 +47,6 @@ persistent ghost ghostSuccCount(address, address) returns mathint {
 
 persistent ghost mapping(address => uint256) ghostGuardianCount {
     init_state axiom forall address X. to_mathint(ghostGuardianCount[X]) == 0;
-
 }
 
 persistent ghost address SENTINEL {
@@ -69,20 +68,6 @@ invariant thresholdSet(address wallet)
             requireInvariant reachableInList();
         }
     }
-
-invariant self_not_guardian()
-    forall address wallet. currentContract != SENTINEL => ghostGuardians[wallet][currentContract] == 0
-    {
-        preserved {
-            requireInvariant reach_null();
-            requireInvariant reach_invariant();
-            requireInvariant inListReachable();
-            requireInvariant reachableInList();
-            requireInvariant countZeroIffListEmpty();
-            // requireInvariant thresholdSet();
-        }
-    }
-
 
 // every element with 0 in the guardians field can only reach the null pointer and itself
 invariant nextNull()
@@ -208,6 +193,9 @@ definition updateSucc(address wallet, address a, address b) returns bool =
 definition count_expected(address wallet, address key) returns mathint =
     ghostGuardians[wallet][key] == NULL ? 0 : ghostGuardians[wallet][key] == SENTINEL ? 1 : ghostSuccCount(wallet, ghostGuardians[wallet][key]) + 1;
 
+definition count_successor(address wallet, address key) returns bool = 
+    (ghostGuardians[wallet][key] != NULL && ghostGuardians[wallet][key] != SENTINEL => ghostSuccCount(wallet,key) >= 2);
+   
 definition updateGhostSuccCount(address wallet, address key, mathint diff) returns bool = forall address W. forall address X.
     (ghostSuccCount@new(W, X) == (ghostSuccCount@old(W, X) + (W == wallet && reach(W, X, key) ? diff : 0)));
 
@@ -262,7 +250,7 @@ invariant reachCount()
     }
 
 invariant count_correct()
-    forall address wallet. forall address X. ghostSuccCount(wallet, X) == count_expected(wallet, X)
+    forall address wallet. forall address X. (ghostSuccCount(wallet, X) == count_expected(wallet, X)) && count_successor(wallet, X)
     {
         preserved {
             requireInvariant reach_invariant();
@@ -364,12 +352,11 @@ rule isGuardianDoesNotRevert {
     assert !lastReverted, "isGuardian should not revert";
 }
 
-rule isGuardianNotSelfOrSentinal {
+rule isGuardianNotSentinal {
     address addr;
-    require addr == currentContract || addr == SENTINEL;
-    requireInvariant self_not_guardian();
+    require addr == SENTINEL;
     bool result = isGuardian(safeContract, addr);
-    assert result == false, "currentContract or SENTINEL must not be guardian";
+    assert result == false, "SENTINEL must not be guardian";
 }
 
 rule isGuardianInList {
