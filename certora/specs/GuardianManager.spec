@@ -28,9 +28,6 @@ methods {
 
 }
 
-// definition reachableOnly(method f) returns bool =
-//     f.selector != sig:simulateAndRevert(address,bytes).selector;
-
 definition MAX_UINT256() returns uint256 = 0xffffffffffffffffffffffffffffffff;
 
 persistent ghost reach(address, address, address) returns bool {
@@ -79,7 +76,6 @@ invariant nextNull()
             requireInvariant inListReachable();
             requireInvariant reachableInList();
             requireInvariant reach_null();
-            // requireInvariant thresholdSet();
         }
     }
 
@@ -91,7 +87,6 @@ invariant reach_null()
             requireInvariant reach_invariant();
             requireInvariant inListReachable();
             requireInvariant reachableInList();
-            // requireInvariant thresholdSet();
         }
     }
 
@@ -106,7 +101,6 @@ invariant reachableInList()
             requireInvariant reach_next();
             requireInvariant nextNull();
             requireInvariant countZeroIffListEmpty();
-            // requireInvariant thresholdSet();
         }
     }
 
@@ -124,7 +118,6 @@ invariant reach_invariant()
             requireInvariant inListReachable();
             requireInvariant reachableInList();
             requireInvariant reachHeadNext();
-            // requireInvariant thresholdSet();
         }
     }
 
@@ -138,14 +131,13 @@ invariant inListReachable()
             requireInvariant reachableInList();
             requireInvariant countZeroIffListEmpty();
             requireInvariant emptyListNotReachable();
-            // requireInvariant thresholdSet();
         }
     }
 
 invariant reachHeadNext()
     forall address wallet. forall address X. (reach(wallet, SENTINEL, X) && X != SENTINEL && X != NULL) =>
            (ghostGuardians[wallet][SENTINEL] != SENTINEL && reach(wallet, ghostGuardians[wallet][SENTINEL], X))
-    {
+    {   
         preserved {
             requireInvariant inListReachable();
             requireInvariant reachableInList();
@@ -153,7 +145,7 @@ invariant reachHeadNext()
             requireInvariant reach_null();
             requireInvariant countZeroIffListEmpty();
             requireInvariant emptyListNotReachable();
-            // requireInvariant thresholdSet();
+            requireInvariant nextNull();
         }
     }
 
@@ -166,7 +158,6 @@ invariant reach_next()
             requireInvariant reachableInList();
             requireInvariant reach_null();
             requireInvariant reach_invariant();
-            // requireInvariant thresholdSet();
         }
     }
 
@@ -230,25 +221,6 @@ hook Sload uint256 value currentContract.entries[KEY address wallet].count {
     require ghostGuardianCount[wallet] == value;
 }
 
-invariant reachCount()
-    forall address wallet. forall address X. forall address Y. reach(wallet, X, Y) =>
-        ghostSuccCount(wallet, X) >= ghostSuccCount(wallet, Y)
-    {
-        preserved {
-            requireInvariant reach_invariant();
-            requireInvariant reach_null();
-            requireInvariant inListReachable();
-            requireInvariant reach_next();
-            requireInvariant nextNull();
-            requireInvariant reachableInList();
-            requireInvariant reachHeadNext();
-            // requireInvariant thresholdSet();
-            requireInvariant count_correct();
-            requireInvariant countZeroIffListEmpty();
-            requireInvariant emptyListNotReachable();
-        }
-    }
-
 invariant count_correct()
     forall address wallet. forall address X. (ghostSuccCount(wallet, X) == count_expected(wallet, X)) && count_successor(wallet, X)
     {
@@ -260,7 +232,7 @@ invariant count_correct()
             requireInvariant nextNull();
             requireInvariant reachableInList();
             requireInvariant reachHeadNext();
-            // requireInvariant thresholdSet();
+            requireInvariant countZeroIffListEmpty();
         }
     }
 
@@ -275,8 +247,6 @@ invariant guardiancount_correct()
             requireInvariant nextNull();
             requireInvariant reachableInList();
             requireInvariant reachHeadNext();
-            requireInvariant reachCount();
-            // requireInvariant thresholdSet();
         }
     }
 
@@ -292,7 +262,6 @@ invariant countZeroIffListEmpty()
             requireInvariant nextNull();
             requireInvariant reachableInList();
             requireInvariant reachHeadNext();
-            requireInvariant reachCount();
             requireInvariant count_correct();
             requireInvariant guardiancount_correct();
         }
@@ -310,7 +279,6 @@ invariant emptyListNotReachable()
             requireInvariant nextNull();
             requireInvariant reachableInList();
             requireInvariant reachHeadNext();
-            requireInvariant reachCount();
             requireInvariant count_correct();
             requireInvariant guardiancount_correct();
         }
