@@ -9,7 +9,7 @@ methods {
     function guardiansCount(address) external returns (uint256) envfree;
     function threshold(address) external returns (uint256) envfree;
     function nonce(address) external returns (uint256) envfree;
-    function encodeRecoveryDataHash(address, address[], uint256, uint256) external returns (bytes32) envfree;
+    function getRecoveryHash(address, address[], uint256, uint256) external returns (bytes32) envfree;
     function getRecoveryApprovals(address, address[], uint256) external returns (uint256) envfree;
     function hasGuardianApproved(address, address, address[], uint256) external returns (bool) envfree;
 
@@ -24,10 +24,10 @@ methods {
     function safeContract.getThreshold() external returns (uint256) envfree;
 
     // Wildcard Functions (Because of use of ISafe interface in Social Recovery Module)
-    function _.isModuleEnabled(address module) external => safeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
-    function _.isOwner(address owner) external => sumarizeSafeIsOwner(calledContract, owner) expect bool ALL;
-    function _.getOwners() external => sumarizeSafeGetOwners(calledContract) expect address[] ALL;
-    function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external => summarizeSafeExecTransactionFromModule(calledContract) expect bool ALL;
+    function _.isModuleEnabled(address module) external => summarizeSafeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
+    function _.isOwner(address owner) external => summarizeSafeIsOwner(calledContract, owner) expect bool ALL;
+    function _.getOwners() external => summarizeSafeGetOwners(calledContract) expect address[] ALL;
+    function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external => summarizeSafeExecTransactionFromModule(calledContract, to, value, data, operation) expect bool ALL;
 }
 
 definition safeContractReachableOnly(method f) returns bool =
@@ -57,31 +57,44 @@ hook Sstore recoveryRequests[KEY address account].newOwners.length uint256 value
 
 // A summary function that asserts that all `ISafe.isModuleEnabled` calls are done
 // to the `safeContract`, returning the same result as `safeContract.isModuleEnabled(...)`.
-function safeIsModuleEnabled(address callee, address module) returns bool {
-    assert callee == safeContract;
-    return safeContract.isModuleEnabled(module);
+function summarizeSafeIsModuleEnabled(address callee, address module) returns bool {
+    if (callee == safeContract) {
+        return safeContract.isModuleEnabled(module);
+    }
+    return _;
 }
 
 // A summary function that asserts that all `ISafe.isOwner` calls are done
 // to the `safeContract`, returning the same result as `safeContract.isOwner(...)`.
-function sumarizeSafeIsOwner(address callee, address owner) returns bool {
-    assert callee == safeContract;
-    return safeContract.isOwner(owner);
+function summarizeSafeIsOwner(address callee, address owner) returns bool {
+    if (callee == safeContract) {
+        return safeContract.isOwner(owner);
+    }
+    return _;
 }
 
 // A summary function that asserts that all `ISafe.getOwners` calls are done
 // to the `safeContract`, returning the same result as `safeContract.getOwners()`.
-function sumarizeSafeGetOwners(address callee) returns address[] {
-    assert callee == safeContract;
-    return safeContract.getOwners();
+function summarizeSafeGetOwners(address callee) returns address[] {
+    if (callee == safeContract) {
+        return safeContract.getOwners();
+    }
+    return _;
 }
 
-// A summary function that asserts that all `ISafe.execTransactionFromModule` calls are done
-// to the `safeContract`, and returns a bool based on the Social Recovery Module enable status.
-// Here we are only concerned if the module is enabled or not, and not the actual tx execution.
-function summarizeSafeExecTransactionFromModule(address callee) returns bool {
-    assert callee == safeContract;
-    return safeContract.isModuleEnabled(currentContract);
+// A summary function that returns bool for calls to `ISafe.execTransactionFromModule` based
+// on the callee being safe contract, the module being enabled for the safe contract and the
+// actual result of the `execTransactionFromModule` call.
+// If the call is not to the `safeContract`, then the summary function returns random value.
+function summarizeSafeExecTransactionFromModule(address callee, address to, uint256 value, bytes data, Enum.Operation operation) returns bool {
+    if (callee == safeContract) {
+        if (!safeContract.isModuleEnabled(currentContract)) {
+            return false;
+        }
+        env e;
+        require safeContract.execTransactionFromModule(e, to, value, data, operation);
+    }
+    return _;
 }
 
 // A setup function that requires Safe contract to enable the Social Recovery Module.
@@ -220,7 +233,7 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
     assert !currentContract.isGuardian(safeContract, guardian);
     assert guardianStorageContract.entries[safeContract].guardians[prevGuardian] == nextGuardian;
     assert guardian != otherAccount => otherAccountIsGuardian == currentContract.isGuardian(safeContract, otherAccount);
-    assert currentGuardiansCount > 0 => currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
+    assert currentGuardiansCount - 1 == to_mathint(guardianStorageContract.entries[safeContract].count);
     assert threshold <= guardianStorageContract.entries[safeContract].count;
 }
 
@@ -256,6 +269,8 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
 
 // This integrity rule verifies the possibilites in which the revocation of a new guardian can revert.
 rule revokeGuardianRevertPossibilities(env e, address prevGuardian, address guardian, uint256 threshold) {
+    requireGuardiansLinkedListIntegrity(guardian);
+
     bool isGuardian = currentContract.isGuardian(safeContract, guardian);
 
     currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, guardian, threshold);
@@ -265,9 +280,6 @@ rule revokeGuardianRevertPossibilities(env e, address prevGuardian, address guar
         !isGuardian ||
         e.msg.sender != safeContract ||
         e.msg.value != 0 ||
-        guardian == 0 ||
-        guardian == SENTINEL() ||
-        guardianStorageContract.entries[safeContract].count == 0 ||
         !safeContract.isModuleEnabled(currentContract) ||
         guardianStorageContract.entries[safeContract].guardians[prevGuardian] != guardian ||
         to_mathint(threshold) > guardianStorageContract.entries[safeContract].count - 1 ||
@@ -296,7 +308,7 @@ rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, addr
     uint256 nonce = currentContract.nonce(safeContract);
     require nonce < max_uint256;
 
-    bytes32 recoveryHash = currentContract.encodeRecoveryDataHash(safeContract, newOwners, newThreshold, nonce);
+    bytes32 recoveryHash = currentContract.getRecoveryHash(safeContract, newOwners, newThreshold, nonce);
     // This ensures that the recovery is not already initiated.
     require currentContract.recoveryRequests[safeContract].executeAfter == 0;
 
@@ -317,7 +329,8 @@ rule confirmRecoveryCanAlwaysBeInitiatedByGuardian(env e, address guardian, addr
 
 // This rule verifies that the finalization cannot happen if the recovery module is not enabled.
 // Exceptions are made for the case where the Safe has only one owner and the recovery is initiated
-// with zero new owners and zero as the new threshold.
+// - with zero new owners and zero as the new threshold
+// - with same last owner & threshold as Safe.
 rule disabledRecoveryModuleResultsInFinalizationRevert(env e) {
     address[] currentOwners = safeContract.getOwners();
     uint256 currentThreshold = safeContract.getThreshold();
@@ -325,14 +338,15 @@ rule disabledRecoveryModuleResultsInFinalizationRevert(env e) {
     require !safeContract.isModuleEnabled(currentContract);
 
     currentContract.finalizeRecovery@withrevert(e, safeContract);
-    bool finalizeRecoveryIsReverted = lastReverted;
+    bool isReverted = lastReverted;
 
     // If the recovery finalization is initiated with the safe having only one owner,
     // and the finalize recovery initiated with no new owners and zero as new threshold,
+    // OR with the same last owner of safe and threshold == newThreshold == 1,
     // then the finalize recovery call goes through, as no owner is removed and no new
     // owner is added. Though it is not possible to have a recovery initiation with zero
     // owners.
-    assert finalizeRecoveryIsReverted ||
+    assert isReverted ||
         (currentOwners[0] == safeContract.getOwners()[0] &&
             safeContract.getOwners().length == 1 &&
             currentThreshold == safeContract.getThreshold());
