@@ -30,6 +30,31 @@ methods {
     function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external => summarizeSafeExecTransactionFromModule(calledContract) expect bool ALL;
 }
 
+definition safeContractReachableOnly(method f) returns bool =
+    f.selector != sig:safeContract.getStorageAt(uint256, uint256).selector &&
+    f.selector != sig:safeContract.simulateAndRevert(address, bytes).selector &&
+    f.selector != sig:safeContract.setup(address[],uint256,address,bytes,address,address,uint256,address).selector;
+
+ghost mapping(address => mathint) ghostNewThreshold {
+    init_state axiom forall address account. ghostNewThreshold[account] == 0;
+}
+hook Sload uint256 value recoveryRequests[KEY address account].newThreshold {
+    require ghostNewThreshold[account] == to_mathint(value);
+}
+hook Sstore recoveryRequests[KEY address account].newThreshold uint256 value {
+    ghostNewThreshold[account] = value;
+}
+
+ghost mapping(address => mathint) ghostNewOwnersLength {
+    init_state axiom forall address account. ghostNewOwnersLength[account] == 0;
+}
+hook Sload uint256 value recoveryRequests[KEY address account].newOwners.length {
+    require ghostNewOwnersLength[account] == to_mathint(value);
+}
+hook Sstore recoveryRequests[KEY address account].newOwners.length uint256 value {
+    ghostNewOwnersLength[account] = value;
+}
+
 // A summary function that asserts that all `ISafe.isModuleEnabled` calls are done
 // to the `safeContract`, returning the same result as `safeContract.isModuleEnabled(...)`.
 function safeIsModuleEnabled(address callee, address module) returns bool {
@@ -77,6 +102,19 @@ function requireGuardiansLinkedListIntegrity(address guardian) {
     require !currentContract.isGuardian(safeContract, guardian) =>
         (forall address prevGuardian. guardianStorageContract.entries[safeContract].guardians[prevGuardian] != guardian);
     require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
+}
+
+invariant thresholdIsAlwaysLessThanEqGuardiansCount(address account)
+    (ghostNewOwnersLength[account] == 0 => ghostNewThreshold[account] == 0) &&
+    (ghostNewOwnersLength[account] > 0 => ghostNewThreshold[account] > 0) &&
+    ghostNewThreshold[account] <= ghostNewOwnersLength[account]
+    filtered {
+        f -> f.contract != safeContract
+    }
+{
+    preserved executeRecovery(address wallet, address[] newOwners, uint256 newThreshold) with (env e) {
+        require newOwners.length > 0 && newThreshold > 0 && newThreshold <= newOwners.length;
+    }
 }
 
 // This integrity rule verifies that if the addGuardianWithThreshold(...) executes, then ensure that:
