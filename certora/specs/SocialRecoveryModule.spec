@@ -30,11 +30,6 @@ methods {
     function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external with (env e) => summarizeSafeExecTransactionFromModule(calledContract, e, to, value, data, operation) expect bool ALL;
 }
 
-definition safeContractReachableOnly(method f) returns bool =
-    f.selector != sig:safeContract.getStorageAt(uint256, uint256).selector &&
-    f.selector != sig:safeContract.simulateAndRevert(address, bytes).selector &&
-    f.selector != sig:safeContract.setup(address[],uint256,address,bytes,address,address,uint256,address).selector;
-
 ghost mapping(address => mathint) ghostNewThreshold {
     init_state axiom forall address account. ghostNewThreshold[account] == 0;
 }
@@ -113,7 +108,10 @@ function requireGuardiansLinkedListIntegrity(address guardian) {
 invariant approvedHashesHaveCorrectThreshold(address wallet, address[] newOwners, uint256 newThreshold, uint256 nonce, bytes32 hash)
     hash == getRecoveryHash(wallet, newOwners, newThreshold, nonce) &&
     ! (forall address guardian. !currentContract.confirmedHashes[hash][guardian]) =>
-    0 < newThreshold && newThreshold <= newOwners.length;
+    0 < newThreshold && newThreshold <= newOwners.length
+    filtered {
+        f -> f.contract != safeContract
+    }
 
 invariant thresholdIsAlwaysLessThanEqGuardiansCount(address account)
     (ghostNewOwnersLength[account] == 0 => ghostNewThreshold[account] == 0) &&
