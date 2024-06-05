@@ -28,8 +28,6 @@ methods {
 
 }
 
-definition MAX_UINT256() returns uint256 = 0xffffffffffffffffffffffffffffffff;
-
 persistent ghost reach(address, address, address) returns bool {
     init_state axiom forall address X. forall address Y. forall address wallet. reach(wallet, X, Y) == (X == Y || to_mathint(Y) == 0);
 }
@@ -217,7 +215,7 @@ hook Sload address value currentContract.entries[KEY address wallet].guardians[K
 hook Sload uint256 value currentContract.entries[KEY address wallet].count {
     // The prover found a counterexample if the guardians count is max uint256,
     // but this is not a realistic scenario.
-    require ghostGuardianCount[wallet] < MAX_UINT256();
+    require ghostGuardianCount[wallet] < max_uint256;
     require ghostGuardianCount[wallet] == value;
 }
 
