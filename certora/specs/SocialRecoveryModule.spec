@@ -107,6 +107,14 @@ function requireGuardiansLinkedListIntegrity(address guardian) {
     require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 }
 
+// Invariant that proves the relationship between the new threshold and the owner.
+// Depending on the recovery cycle, there could be no new owners present in the 
+// recoveryRequest, or not. One thing is certain, the threshold should always be 
+invariant approvedHashesHaveCorrectThreshold(address wallet, address[] newOwners, uint256 newThreshold, uint256 nonce, bytes32 hash)
+    hash == getRecoveryHash(wallet, newOwners, newThreshold, nonce) &&
+    ! (forall address guardian. !currentContract.confirmedHashes[hash][guardian]) =>
+    0 < newThreshold && newThreshold <= newOwners.length;
+
 invariant thresholdIsAlwaysLessThanEqGuardiansCount(address account)
     (ghostNewOwnersLength[account] == 0 => ghostNewThreshold[account] == 0) &&
     (ghostNewOwnersLength[account] > 0 => ghostNewThreshold[account] > 0) &&
@@ -116,7 +124,9 @@ invariant thresholdIsAlwaysLessThanEqGuardiansCount(address account)
     }
 {
     preserved executeRecovery(address wallet, address[] newOwners, uint256 newThreshold) with (env e) {
-        require newOwners.length > 0 && newThreshold > 0 && newThreshold <= newOwners.length;
+        uint256 nonce = currentContract.nonce(wallet);
+        bytes32 hash = getRecoveryHash(wallet, newOwners, newThreshold, nonce);
+        requireInvariant approvedHashesHaveCorrectThreshold(wallet, newOwners, newThreshold, nonce, hash);
     }
 }
 
