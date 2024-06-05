@@ -318,11 +318,8 @@ rule isGuardianDoesNotRevert {
     assert !lastReverted, "isGuardian should not revert";
 }
 
-rule isGuardianNotSentinal {
-    address addr;
-    require addr == SENTINEL;
-    bool result = isGuardian(safeContract, addr);
-    assert result == false, "SENTINEL must not be guardian";
+rule sentinelCantBeGuardian() {
+   assert !isGuardian(safeContract, SENTINEL), "SENTINEL must not be guardian";
 }
 
 rule isGuardianInList {
