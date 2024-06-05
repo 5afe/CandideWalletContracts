@@ -352,7 +352,6 @@ rule addGuardianChangesEntries {
 
     assert isGuardian(safeContract, toAdd), "addGuardian should add the given guardian";
     assert isGuardian(safeContract, other) == isGuardianOtherBefore, "addGuardian should not remove or add other guardians";
-    satisfy true;
 }
 
 rule removeGuardianChangesGuardians {
