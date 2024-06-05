@@ -26,11 +26,10 @@ methods {
     function _.isModuleEnabled(address module) external => summarizeSafeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
     function _.isOwner(address owner) external => summarizeSafeIsOwner(calledContract, owner) expect bool ALL;
     function _.getOwners() external => summarizeSafeGetOwners(calledContract) expect address[] ALL;
-    function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external => summarizeSafeExecTransactionFromModule(calledContract, to, value, data, operation) expect bool ALL;
+    function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external with (env e) => summarizeSafeExecTransactionFromModule(calledContract, e, to, value, data, operation) expect bool ALL;
 }
 
-// A summary function that asserts that all `ISafe.isModuleEnabled` calls are done
-// to the `safeContract`, returning the same result as `safeContract.isModuleEnabled(...)`.
+// A summary function that helps the prover resolve calls to `safeContract`.
 function summarizeSafeIsModuleEnabled(address callee, address module) returns bool {
     if (callee == safeContract) {
         return safeContract.isModuleEnabled(module);
@@ -38,8 +37,7 @@ function summarizeSafeIsModuleEnabled(address callee, address module) returns bo
     return _;
 }
 
-// A summary function that asserts that all `ISafe.isOwner` calls are done
-// to the `safeContract`, returning the same result as `safeContract.isOwner(...)`.
+// A summary function that helps the prover resolve calls to `safeContract`.
 function summarizeSafeIsOwner(address callee, address owner) returns bool {
     if (callee == safeContract) {
         return safeContract.isOwner(owner);
@@ -47,8 +45,7 @@ function summarizeSafeIsOwner(address callee, address owner) returns bool {
     return _;
 }
 
-// A summary function that asserts that all `ISafe.getOwners` calls are done
-// to the `safeContract`, returning the same result as `safeContract.getOwners()`.
+// A summary function that helps the prover resolve calls to `safeContract`.
 function summarizeSafeGetOwners(address callee) returns address[] {
     if (callee == safeContract) {
         return safeContract.getOwners();
@@ -56,17 +53,10 @@ function summarizeSafeGetOwners(address callee) returns address[] {
     return _;
 }
 
-// A summary function that returns bool for calls to `ISafe.execTransactionFromModule` based
-// on the callee being safe contract, the module being enabled for the safe contract and the
-// actual result of the `execTransactionFromModule` call.
-// If the call is not to the `safeContract`, then the summary function returns random value.
-function summarizeSafeExecTransactionFromModule(address callee, address to, uint256 value, bytes data, Enum.Operation operation) returns bool {
+// A summary function that helps the prover resolve calls to `safeContract`.
+function summarizeSafeExecTransactionFromModule(address callee, env e, address to, uint256 value, bytes data, Enum.Operation operation) returns bool {
     if (callee == safeContract) {
-        if (!safeContract.isModuleEnabled(currentContract)) {
-            return false;
-        }
-        env e;
-        require safeContract.execTransactionFromModule(e, to, value, data, operation);
+        return safeContract.execTransactionFromModule(e, to, value, data, operation);
     }
     return _;
 }
