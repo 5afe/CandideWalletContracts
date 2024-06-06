@@ -79,9 +79,9 @@ function requireGuardiansLinkedListIntegrity(address guardian) {
     require guardianStorageContract.entries[safeContract].count == guardianStorageContract.countGuardians(safeContract);
 }
 
-// Invariant that proves the relationship between the new threshold and the owner.
-// Depending on the recovery cycle, there could be no new owners present in the 
-// recoveryRequest, or not. One thing is certain, the threshold should always be 
+// Invariant that proves the relationship between the new threshold, new owner length and the
+// `confirmedHash`. If there is a `confirmedHash` for a given `hash` and `guardian`, then the
+// threshold should be greater than zero and less than or equal to the number of new owners.
 invariant approvedHashesHaveCorrectThreshold(address wallet, address[] newOwners, uint256 newThreshold, uint256 nonce, bytes32 hash)
     hash == getRecoveryHash(wallet, newOwners, newThreshold, nonce) &&
     ! (forall address guardian. !currentContract.confirmedHashes[hash][guardian]) =>
@@ -90,6 +90,10 @@ invariant approvedHashesHaveCorrectThreshold(address wallet, address[] newOwners
         f -> f.contract != safeContract
     }
 
+// Invariant that proves the relationship between the new threshold and the owner.
+// Depending on the recovery cycle, there could be no new owners present in the 
+// recoveryRequest, or not. One thing is certain, the threshold should always be
+// less than or equal to the number of new owners.
 invariant thresholdIsAlwaysLessThanEqGuardiansCount(address account)
     (ghostNewOwnersLength[account] == 0 => ghostNewThreshold[account] == 0) &&
     (ghostNewOwnersLength[account] > 0 => ghostNewThreshold[account] > 0) &&
