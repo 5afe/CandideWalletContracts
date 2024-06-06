@@ -302,3 +302,49 @@ rule disabledRecoveryModuleResultsInFinalizationRevert(env e) {
             safeContract.getOwners().length == 1 &&
             currentThreshold == safeContract.getThreshold());
 }
+
+// Recovery can be cancelled
+rule cancelRecovery() {
+    env e;
+    require e.msg.sender == safeContract;
+    require e.msg.value == 0;
+
+    // A recovery request must be initiated.
+    require currentContract.recoveryRequests[safeContract].executeAfter > 0;
+    require currentContract.walletsNonces[safeContract] > 0;
+
+    currentContract.cancelRecovery@withrevert(e, safeContract);
+    assert !lastReverted;
+}
+
+// Cancelling recovery for a wallet does not affect other wallets
+rule cancelRecoveryDoesNotAffectOtherWallet() {
+    env e;
+    address otherWallet;
+    require otherWallet != safeContract;
+    require e.msg.sender == safeContract;
+    require e.msg.value == 0;
+
+    SocialRecoveryModule.RecoveryRequest otherRequestBefore = currentContract.getRecoveryRequest(e, otherWallet);
+    uint256 otherWalletNonceBefore = currentContract.walletsNonces[otherWallet];
+
+    // A recovery request must be initiated.
+    require currentContract.recoveryRequests[safeContract].executeAfter > 0;
+    require currentContract.walletsNonces[safeContract] > 0;
+
+    currentContract.cancelRecovery(e, safeContract);
+
+    SocialRecoveryModule.RecoveryRequest otherRequestAfter = currentContract.getRecoveryRequest(e, otherWallet);
+
+    assert otherRequestBefore.guardiansApprovalCount == otherRequestAfter.guardiansApprovalCount;
+    assert otherRequestBefore.newThreshold == otherRequestAfter.newThreshold;
+    assert otherRequestBefore.executeAfter == otherRequestAfter.executeAfter;
+
+    uint256 i;
+    require i < otherRequestAfter.newOwners.length;
+
+    assert otherRequestBefore.newOwners.length == otherRequestAfter.newOwners.length;
+    assert otherRequestBefore.newOwners[i] == otherRequestAfter.newOwners[i];
+
+    assert otherWalletNonceBefore == currentContract.walletsNonces[otherWallet];
+}
