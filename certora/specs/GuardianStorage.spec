@@ -165,7 +165,7 @@ invariant reachNext()
 definition isSucc(address wallet, address a, address b) returns bool = reach(wallet, a, b) && a != b && (forall address Z. reach(wallet, a, Z) && reach(wallet, Z, b) => (a == Z || b == Z));
 definition nextOrNull(address n) returns address = n == SENTINEL ? NULL : n;
 
-// Invariant stating that the guardians storage pointers correspond to the next relation, except for the SENTINEL tail marker.
+// State that the guardians storage pointers correspond to the next relation, except for the SENTINEL tail marker.
 definition reachSucc(address wallet, address key, address next) returns bool =
         (key != NULL && isSucc(wallet, key, nextOrNull(next))) ||
         (key == NULL && next == NULL && (forall address Z. reach(wallet, key, Z) => Z == NULL));
