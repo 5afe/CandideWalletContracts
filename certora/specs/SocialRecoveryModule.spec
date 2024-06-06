@@ -23,11 +23,12 @@ methods {
     function safeContract.getOwners() external returns (address[] memory) envfree;
     function safeContract.getThreshold() external returns (uint256) envfree;
 
-    // Wildcard Functions (Because of use of ISafe interface in Social Recovery Module)
-    function _.isModuleEnabled(address module) external => summarizeSafeIsModuleEnabled(calledContract, module) expect bool ALL; // `calledContract` is a special variable.
-    function _.isOwner(address owner) external => summarizeSafeIsOwner(calledContract, owner) expect bool ALL;
-    function _.getOwners() external => summarizeSafeGetOwners(calledContract) expect address[] ALL;
+    // Wildcard Functions
     function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external with (env e) => summarizeSafeExecTransactionFromModule(calledContract, e, to, value, data, operation) expect bool ALL;
+    function _.isModuleEnabled(address module) external => DISPATCHER(false);
+    function _.isOwner(address owner) external => DISPATCHER(false);
+    function _.getOwners() external => DISPATCHER(false);
+    function _._ external => DISPATCH[] default NONDET;
 }
 
 ghost mapping(address => mathint) ghostNewThreshold {
@@ -48,30 +49,6 @@ hook Sload uint256 value recoveryRequests[KEY address account].newOwners.length 
 }
 hook Sstore recoveryRequests[KEY address account].newOwners.length uint256 value {
     ghostNewOwnersLength[account] = value;
-}
-
-// A summary function that helps the prover resolve calls to `safeContract`.
-function summarizeSafeIsModuleEnabled(address callee, address module) returns bool {
-    if (callee == safeContract) {
-        return safeContract.isModuleEnabled(module);
-    }
-    return _;
-}
-
-// A summary function that helps the prover resolve calls to `safeContract`.
-function summarizeSafeIsOwner(address callee, address owner) returns bool {
-    if (callee == safeContract) {
-        return safeContract.isOwner(owner);
-    }
-    return _;
-}
-
-// A summary function that helps the prover resolve calls to `safeContract`.
-function summarizeSafeGetOwners(address callee) returns address[] {
-    if (callee == safeContract) {
-        return safeContract.getOwners();
-    }
-    return _;
 }
 
 // A summary function that helps the prover resolve calls to `safeContract`.
