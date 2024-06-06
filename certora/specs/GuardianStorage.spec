@@ -234,7 +234,7 @@ invariant countCorrect()
         }
     }
 
-invariant guardiancountCorrect()
+invariant guardianCountCorrect()
    forall address wallet. (ghostGuardianCount[wallet] == 0 && ghostGuardians[wallet][SENTINEL] == NULL) || (ghostSuccCount(wallet, SENTINEL) == ghostGuardianCount[wallet] + 1)
     {
         preserved {
