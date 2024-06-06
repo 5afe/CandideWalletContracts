@@ -261,7 +261,7 @@ invariant countZeroIffListEmpty()
             requireInvariant reachableInList();
             requireInvariant reachHeadNext();
             requireInvariant countCorrect();
-            requireInvariant guardiancountCorrect();
+            requireInvariant guardianCountCorrect();
         }
     }
 
@@ -278,7 +278,7 @@ invariant emptyListNotReachable()
             requireInvariant reachableInList();
             requireInvariant reachHeadNext();
             requireInvariant countCorrect();
-            requireInvariant guardiancountCorrect();
+            requireInvariant guardianCountCorrect();
         }
     }
 
