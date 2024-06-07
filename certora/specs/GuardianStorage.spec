@@ -25,7 +25,6 @@ methods {
     // GuardianManager Functions
     function threshold(address) external returns (uint256) envfree;
     function isGuardian(address, address) external returns (bool) envfree;
-
 }
 
 // A ghost function to check the reachability for each wallet address for given two addresses.
