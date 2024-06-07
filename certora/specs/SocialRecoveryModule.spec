@@ -325,6 +325,8 @@ rule cancelRecoveryDoesNotAffectOtherWallet(env e, address otherWallet) {
 
     SocialRecoveryModule.RecoveryRequest otherRequestBefore = currentContract.getRecoveryRequest(e, otherWallet);
     uint256 otherWalletNonceBefore = currentContract.walletsNonces[otherWallet];
+    uint256 i;
+    require i < otherRequestBefore.newOwners.length;
 
     // A recovery request must be initiated.
     require currentContract.recoveryRequests[safeContract].executeAfter > 0;
