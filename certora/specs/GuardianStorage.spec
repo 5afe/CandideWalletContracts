@@ -16,7 +16,6 @@
  */
 
 using SafeHarness as safeContract;
-using SocialRecoveryModule as socialRecoveryModule;
 
 methods {
     // Safe Functions
