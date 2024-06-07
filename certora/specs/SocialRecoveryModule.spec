@@ -318,7 +318,6 @@ rule cancelRecovery(env e) {
 
 // Cancelling recovery for a wallet does not affect other wallets
 rule cancelRecoveryDoesNotAffectOtherWallet(env e, address otherWallet) {
-    require otherWallet != safeContract;
     require e.msg.sender == safeContract;
     require e.msg.value == 0;
 
@@ -335,10 +334,11 @@ rule cancelRecoveryDoesNotAffectOtherWallet(env e, address otherWallet) {
 
     SocialRecoveryModule.RecoveryRequest otherRequestAfter = currentContract.getRecoveryRequest(e, otherWallet);
 
-    assert otherRequestBefore.guardiansApprovalCount == otherRequestAfter.guardiansApprovalCount;
-    assert otherRequestBefore.newThreshold == otherRequestAfter.newThreshold;
-    assert otherRequestBefore.executeAfter == otherRequestAfter.executeAfter;
-    assert otherRequestBefore.newOwners.length == otherRequestAfter.newOwners.length;
-    assert otherRequestBefore.newOwners[i] == otherRequestAfter.newOwners[i];
-    assert otherWalletNonceBefore == currentContract.walletsNonces[otherWallet];
+    assert safeContract != otherWallet =>
+        otherRequestBefore.guardiansApprovalCount == otherRequestAfter.guardiansApprovalCount &&
+        otherRequestBefore.newThreshold == otherRequestAfter.newThreshold &&
+        otherRequestBefore.executeAfter == otherRequestAfter.executeAfter &&
+        otherRequestBefore.newOwners.length == otherRequestAfter.newOwners.length &&
+        otherRequestBefore.newOwners[i] == otherRequestAfter.newOwners[i] &&
+        otherWalletNonceBefore == currentContract.walletsNonces[otherWallet];
 }
