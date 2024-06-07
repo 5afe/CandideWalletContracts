@@ -194,12 +194,15 @@ definition updateSucc(address wallet, address a, address b) returns bool =
             (ghostReach@old(W, X, Y) && !(W == wallet && ghostReach@old(W, X, a) && a != Y && ghostReach@old(W, a, Y))) ||
             (W == wallet && ghostReach@old(W, X, a) && ghostReach@old(W, b, Y)));
 
+// A definition that returns the successor count for a given guardian and the wallet.
 definition countExpected(address wallet, address key) returns mathint =
     ghostGuardians[wallet][key] == NULL ? 0 : ghostGuardians[wallet][key] == SENTINEL ? 1 : ghostSuccCount(wallet, ghostGuardians[wallet][key]) + 1;
 
+// A definition that returns true if successor count for a guardian for a wallet is more than two if guardian is not NULL and not SENTINEL.
 definition countSuccessor(address wallet, address key) returns bool = 
     (ghostGuardians[wallet][key] != NULL && ghostGuardians[wallet][key] != SENTINEL => ghostSuccCount(wallet,key) >= 2);
-   
+
+// Update the ghostSuccCount for a wallet based on reachablility. If not reachable, old count is retained.
 definition updateGhostSuccCount(address wallet, address key, mathint diff) returns bool = forall address W. forall address X.
     (ghostSuccCount@new(W, X) == (ghostSuccCount@old(W, X) + (W == wallet && ghostReach(W, X, key) ? diff : 0)));
 
@@ -228,6 +231,7 @@ hook Sload address value currentContract.entries[KEY address wallet].guardians[K
     require ghostSuccCount(wallet, key) == countExpected(wallet, key);
 }
 
+// Hook to match ghost state and storage state when reading guardian count from storage.
 hook Sload uint256 value currentContract.entries[KEY address wallet].count {
     // The prover found a counterexample if the guardians count is max uint256,
     // but this is not a realistic scenario.
@@ -251,6 +255,7 @@ invariant countCorrect()
         }
     }
 
+// Invariant that checks for any wallet either there are no guardians (and SENTINEL points to NULL) or successor count of SENTINEL equals ghostGuardianCount + 1.
 invariant guardianCountCorrect()
    forall address wallet. (ghostGuardianCount[wallet] == 0 && ghostGuardians[wallet][SENTINEL] == NULL) || (ghostSuccCount(wallet, SENTINEL) == ghostGuardianCount[wallet] + 1)
     {
