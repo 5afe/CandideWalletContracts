@@ -235,6 +235,7 @@ hook Sload uint256 value currentContract.entries[KEY address wallet].count {
     require ghostGuardianCount[wallet] == value;
 }
 
+// This invariant verifies that the successor count for each guardian for each wallet is one more than its next successor.
 invariant countCorrect()
     forall address wallet. forall address X. (ghostSuccCount(wallet, X) == countExpected(wallet, X)) && countSuccessor(wallet, X)
     {
@@ -264,6 +265,7 @@ invariant guardianCountCorrect()
         }
     }
 
+// The ghostGuardians[wallet][SENTINEL] should be NULL or SENTINEL if the guardian count is 0.
 invariant countZeroIffListEmpty()
     forall address wallet. ghostGuardianCount[wallet] == 0 <=>
         (ghostGuardians[wallet][SENTINEL] == NULL || ghostGuardians[wallet][SENTINEL] == SENTINEL)
@@ -281,6 +283,7 @@ invariant countZeroIffListEmpty()
         }
     }
 
+// All the elements in ghostGuardians[wallet] should point to NULL if the list is empty.
 invariant emptyListNotReachable()
     forall address wallet. (ghostGuardians[wallet][SENTINEL] == NULL || ghostGuardians[wallet][SENTINEL] == SENTINEL)
         => (forall address X. X != SENTINEL => ghostGuardians[wallet][X] == NULL)
@@ -328,16 +331,19 @@ rule storeHookPreservesInvariants(address wallet, address key, address value) {
     );
 }
 
+// isGuardian(...) function should never revert.
 rule isGuardianDoesNotRevert {
     address addr;
     isGuardian@withrevert(safeContract, addr);
     assert !lastReverted, "isGuardian should not revert";
 }
 
+// SENTINEL should not be a guardian.
 rule sentinelCantBeGuardian() {
    assert !isGuardian(safeContract, SENTINEL), "SENTINEL must not be guardian";
 }
 
+// If isGuardian returns true, the guardian should be in the ghostGuardians. 
 rule isGuardianInList {
     address addr;
     env e;
@@ -347,6 +353,7 @@ rule isGuardianInList {
     assert result == (ghostGuardians[safeContract][addr] != NULL), "isGuardian returns wrong result";
 }
 
+// Adding a guardian should updates storage only related to the specific wallet.
 rule addGuardianChangesEntries {
     address other;
     address toAdd;
@@ -367,6 +374,7 @@ rule addGuardianChangesEntries {
     assert isGuardian(safeContract, other) == isGuardianOtherBefore, "addGuardian should not remove or add other guardians";
 }
 
+// Removing a guardian should updates storage only related to the specific wallet.
 rule removeGuardianChangesGuardians {
     address other;
     address toRemove;
