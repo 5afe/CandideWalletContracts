@@ -304,8 +304,7 @@ rule disabledRecoveryModuleResultsInFinalizationRevert(env e) {
 }
 
 // Recovery can be cancelled
-rule cancelRecovery() {
-    env e;
+rule cancelRecovery(env e) {
     require e.msg.sender == safeContract;
     require e.msg.value == 0;
 
@@ -339,12 +338,7 @@ rule cancelRecoveryDoesNotAffectOtherWallet(env e, address otherWallet) {
     assert otherRequestBefore.guardiansApprovalCount == otherRequestAfter.guardiansApprovalCount;
     assert otherRequestBefore.newThreshold == otherRequestAfter.newThreshold;
     assert otherRequestBefore.executeAfter == otherRequestAfter.executeAfter;
-
-    uint256 i;
-    require i < otherRequestAfter.newOwners.length;
-
     assert otherRequestBefore.newOwners.length == otherRequestAfter.newOwners.length;
     assert otherRequestBefore.newOwners[i] == otherRequestAfter.newOwners[i];
-
     assert otherWalletNonceBefore == currentContract.walletsNonces[otherWallet];
 }
