@@ -318,9 +318,7 @@ rule cancelRecovery() {
 }
 
 // Cancelling recovery for a wallet does not affect other wallets
-rule cancelRecoveryDoesNotAffectOtherWallet() {
-    env e;
-    address otherWallet;
+rule cancelRecoveryDoesNotAffectOtherWallet(env e, address otherWallet) {
     require otherWallet != safeContract;
     require e.msg.sender == safeContract;
     require e.msg.value == 0;
