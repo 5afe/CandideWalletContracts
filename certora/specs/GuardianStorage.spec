@@ -56,9 +56,21 @@ persistent ghost address NULL {
     axiom to_mathint(NULL) == 0;
 }
 
+// Verifies that if threshold Zero there sghould be no guardian.
+invariant guardianCountZeroIfThresholdZero(address wallet)
+    threshold(wallet) == 0 => ghostGuardianCount[wallet] == 0
+    {
+        preserved {
+            requireInvariant reachNull();
+            requireInvariant reachInvariant();
+            requireInvariant inListReachable();
+            requireInvariant reachableInList();
+        }
+    }
+
 // Verifies that threshold is less than or equal to the number of guardians for a given wallet.
 invariant thresholdSet(address wallet)
-    threshold(wallet) <= ghostGuardianCount[wallet]
+    (threshold(wallet) <= ghostGuardianCount[wallet])
     {
         preserved {
             requireInvariant reachNull();
