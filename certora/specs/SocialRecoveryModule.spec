@@ -361,6 +361,7 @@ rule guardiansCanInitiateRecoveryForAssignedAccount(env e, address guardian, add
         currentContract.isGuardian(safeContract, guardian) &&
         currentContract.hasGuardianApproved(safeContract, guardian, newOwners, newThreshold) &&
         (guardianConfirmed || to_mathint(currentContract.getRecoveryApprovals(safeContract, newOwners, newThreshold)) == currentApprovals + 1);
+}
 
 // Recovery can be cancelled
 rule cancelRecovery(env e) {
