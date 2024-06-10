@@ -64,6 +64,11 @@ function requireSocialRecoveryModuleEnabled() {
     require(safeContract.isModuleEnabled(currentContract));
 }
 
+function requireInitiatedRecovery(address wallet) {
+    require currentContract.recoveryRequests[safeContract].executeAfter > 0;
+    require currentContract.walletsNonces[safeContract] > 0;
+}
+
 // Setup function that `require`s the integrity of the guardians linked list
 // in the `GuardianStorage` contract. This is needed as `invariant`s can only
 // be proven for `currentContract` and not `guardianStorageContract`, however,
@@ -368,9 +373,7 @@ rule cancelRecovery(env e) {
     require e.msg.sender == safeContract;
     require e.msg.value == 0;
 
-    // A recovery request must be initiated.
-    require currentContract.recoveryRequests[safeContract].executeAfter > 0;
-    require currentContract.walletsNonces[safeContract] > 0;
+    requireInitiatedRecovery(safeContract);
 
     currentContract.cancelRecovery@withrevert(e, safeContract);
     assert !lastReverted;
@@ -386,9 +389,7 @@ rule cancelRecoveryDoesNotAffectOtherWallet(env e, address otherWallet) {
     uint256 i;
     require i < otherRequestBefore.newOwners.length;
 
-    // A recovery request must be initiated.
-    require currentContract.recoveryRequests[safeContract].executeAfter > 0;
-    require currentContract.walletsNonces[safeContract] > 0;
+    requireInitiatedRecovery(safeContract);
 
     currentContract.cancelRecovery(e, safeContract);
 
@@ -401,4 +402,16 @@ rule cancelRecoveryDoesNotAffectOtherWallet(env e, address otherWallet) {
         otherRequestBefore.newOwners.length == otherRequestAfter.newOwners.length &&
         otherRequestBefore.newOwners[i] == otherRequestAfter.newOwners[i] &&
         otherWalletNonceBefore == currentContract.walletsNonces[otherWallet];
+}
+
+rule cantFinalizeRecoveryBeforeDelayPeriod(env e) {
+    requireInitiatedRecovery(safeContract);
+
+    uint64 recoveryTimestamp = currentContract.recoveryRequests[safeContract].executeAfter;
+
+    currentContract.finalizeRecovery@withrevert(e, safeContract);
+
+    bool success = !lastReverted;
+
+    assert success => require_uint64(e.block.timestamp) >= recoveryTimestamp, "Recovery finalized before delay period";
 }
