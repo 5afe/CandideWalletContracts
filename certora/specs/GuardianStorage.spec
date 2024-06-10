@@ -55,8 +55,8 @@ persistent ghost address NULL {
 }
 
 // Verifies that if threshold Zero there sghould be no guardian.
-invariant guardianCountZeroIfThresholdZero(address wallet)
-    threshold(wallet) == 0 => ghostGuardianCount[wallet] == 0
+invariant guardianCountZeroIffThresholdZero(address wallet)
+    threshold(wallet) == 0 <=> ghostGuardianCount[wallet] == 0
     {
         preserved {
             requireInvariant reachNull();
