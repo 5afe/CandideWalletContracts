@@ -125,7 +125,7 @@ rule addGuardianWorksAsExpected(env e, address guardian, uint256 threshold, addr
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
     bool otherAccountIsGuardian = currentContract.isGuardian(safeContract, otherAccount);
 
-    currentContract.addGuardianWithThreshold(e, safeContract, guardian, threshold);
+    currentContract.addGuardianWithThreshold(e, guardian, threshold);
 
     assert safeContract.isModuleEnabled(currentContract);
     assert e.msg.sender == safeContract;
@@ -162,7 +162,7 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
 
     // Safe contract should be the sender of the transaction.
     require e.msg.sender == safeContract;
-    currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
+    currentContract.addGuardianWithThreshold@withrevert(e, guardian, threshold);
     bool isReverted = lastReverted;
 
     assert !isReverted &&
@@ -174,7 +174,7 @@ rule guardianCanAlwaysBeAdded(env e, address guardian, uint256 threshold) {
 rule addGuardianRevertPossibilities(env e, address guardian, uint256 threshold) {
     bool isGuardian = currentContract.isGuardian(safeContract, guardian);
 
-    currentContract.addGuardianWithThreshold@withrevert(e, safeContract, guardian, threshold);
+    currentContract.addGuardianWithThreshold@withrevert(e, guardian, threshold);
     bool isReverted = lastReverted;
 
     assert isReverted =>
@@ -205,7 +205,7 @@ rule revokeGuardiansWorksAsExpected(env e, address guardian, address prevGuardia
 
     uint256 currentGuardiansCount = guardianStorageContract.entries[safeContract].count;
 
-    currentContract.revokeGuardianWithThreshold(e, safeContract, prevGuardian, guardian, threshold);
+    currentContract.revokeGuardianWithThreshold(e, prevGuardian, guardian, threshold);
 
     assert safeContract.isModuleEnabled(currentContract);
     assert e.msg.sender == safeContract;
@@ -237,7 +237,7 @@ rule guardianCanAlwaysBeRevoked(env e, address guardian, address prevGuardian, u
 
     // Safe Contract should be the sender of the transaction.
     require e.msg.sender == safeContract;
-    currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, guardian, threshold);
+    currentContract.revokeGuardianWithThreshold@withrevert(e, prevGuardian, guardian, threshold);
     bool isReverted = lastReverted;
 
     assert !isReverted &&
@@ -252,7 +252,7 @@ rule revokeGuardianRevertPossibilities(env e, address prevGuardian, address guar
 
     bool isGuardian = currentContract.isGuardian(safeContract, guardian);
 
-    currentContract.revokeGuardianWithThreshold@withrevert(e, safeContract, prevGuardian, guardian, threshold);
+    currentContract.revokeGuardianWithThreshold@withrevert(e, prevGuardian, guardian, threshold);
     bool isReverted = lastReverted;
 
     assert isReverted =>

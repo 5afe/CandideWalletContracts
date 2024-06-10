@@ -24,7 +24,7 @@ describe("SocialRecoveryModule", async () => {
     const guardianStorage = await ethers.deployContract("GuardianStorage", [], { signer: deployer });
     const socialRecoveryModule = await ethers.deployContract(
       "SocialRecoveryModule",
-      [await guardianStorage.getAddress(), 3600],
+      [3600],
       { signer: deployer },
     );
     const account = await hre.ethers.deployContract("TestExecutor", [], { signer: deployer });
@@ -39,7 +39,7 @@ describe("SocialRecoveryModule", async () => {
     guardian: string,
     threshold: number,
   ) {
-    const data = socialRecoveryModule.interface.encodeFunctionData("addGuardianWithThreshold", [account.target, guardian, threshold]);
+    const data = socialRecoveryModule.interface.encodeFunctionData("addGuardianWithThreshold", [guardian, threshold]);
     await account.exec(socialRecoveryModule.target, 0, data);
   }
 
