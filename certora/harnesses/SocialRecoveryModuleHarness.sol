@@ -4,5 +4,5 @@ import {SocialRecoveryModule} from "../../contracts/modules/social_recovery/Soci
 import {IGuardianStorage} from "../../contracts/modules/social_recovery/storage/IGuardianStorage.sol";
 
 contract SocialRecoveryModuleHarness is SocialRecoveryModule {
-    constructor(IGuardianStorage _guardianStorage, uint256 _recoveryPeriod) SocialRecoveryModule(_guardianStorage, _recoveryPeriod) {}
+    constructor(uint256 _recoveryPeriod) SocialRecoveryModule(_recoveryPeriod) {}
 }
