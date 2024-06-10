@@ -84,8 +84,8 @@ function requireGuardiansLinkedListIntegrity(address guardian) {
 // threshold should be greater than zero and less than or equal to the number of new owners.
 invariant approvedHashesHaveCorrectThreshold(address wallet, address[] newOwners, uint256 newThreshold, uint256 nonce, bytes32 hash)
     hash == getRecoveryHash(wallet, newOwners, newThreshold, nonce) &&
-    ! (forall address guardian. !currentContract.confirmedHashes[hash][guardian]) =>
-    0 < newThreshold && newThreshold <= newOwners.length
+    (!(forall address guardian. !currentContract.confirmedHashes[hash][guardian])) =>
+        0 < newThreshold && newThreshold <= newOwners.length
     filtered {
         f -> f.contract != safeContract
     }
