@@ -84,7 +84,7 @@ contract GuardianStorage is IGuardianStorage {
      * @dev Allows to update the number of required confirmations by guardians.
      * @param _threshold New threshold.
      */
-    function changeThreshold(uint256 _threshold) external onlyWhenModuleIsEnabled(){
+    function changeThreshold(uint256 _threshold) external onlyWhenModuleIsEnabled() {
         _changeThreshold(msg.sender, _threshold);
     }
 
