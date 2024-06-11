@@ -50,14 +50,6 @@ contract SocialRecoveryModule is GuardianStorage {
     event RecoveryCanceled(address indexed wallet, uint256 nonce);
 
     /**
-     * @notice Throws if the sender is not the module itself or the owner of the target wallet.
-     */
-    modifier authorized(address _wallet) {
-        require(msg.sender == _wallet, "SM: unauthorized");
-        _;
-    }
-
-    /**
      * @notice Throws if there is no ongoing recovery request.
      */
     modifier whenRecovery(address _wallet) {
@@ -296,11 +288,10 @@ contract SocialRecoveryModule is GuardianStorage {
 
     /**
      * @notice Lets the owner cancel an ongoing recovery request.
-     * @param _wallet The target wallet.
      */
-    function cancelRecovery(address _wallet) external authorized(_wallet) whenRecovery(_wallet) {
-        delete recoveryRequests[_wallet];
-        emit RecoveryCanceled(_wallet, walletsNonces[_wallet] - 1);
+    function cancelRecovery() external whenRecovery(msg.sender) {
+        delete recoveryRequests[msg.sender];
+        emit RecoveryCanceled(msg.sender, walletsNonces[msg.sender] - 1);
     }
 
     /**

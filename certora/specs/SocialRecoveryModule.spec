@@ -366,7 +366,7 @@ rule cancelRecovery(env e) {
     require currentContract.recoveryRequests[safeContract].executeAfter > 0;
     require currentContract.walletsNonces[safeContract] > 0;
 
-    currentContract.cancelRecovery@withrevert(e, safeContract);
+    currentContract.cancelRecovery@withrevert(e);
     assert !lastReverted;
 }
 
@@ -384,7 +384,7 @@ rule cancelRecoveryDoesNotAffectOtherWallet(env e, address otherWallet) {
     require currentContract.recoveryRequests[safeContract].executeAfter > 0;
     require currentContract.walletsNonces[safeContract] > 0;
 
-    currentContract.cancelRecovery(e, safeContract);
+    currentContract.cancelRecovery(e);
 
     SocialRecoveryModule.RecoveryRequest otherRequestAfter = currentContract.getRecoveryRequest(e, otherWallet);
 
