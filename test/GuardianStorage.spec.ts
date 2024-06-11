@@ -51,7 +51,7 @@ describe("GuardianStorage", async () => {
       await account.exec(account.target, 0, removeModuleData);
       //
       const data = socialRecoveryModule.interface.encodeFunctionData("addGuardianWithThreshold", [guardian1.address, 1]);
-      await expect(account.exec(socialRecoveryModule.target, 0, data)).to.be.revertedWith("GS: method only callable by an enabled module");
+      await expect(account.exec(socialRecoveryModule.target, 0, data)).to.be.revertedWith("GS: method only callable when module is enabled");
     });
     it("should not allow adding zero address as guardian", async () => {
       const { account, socialRecoveryModule } = await loadFixture(setupTests);
@@ -131,7 +131,7 @@ describe("GuardianStorage", async () => {
       await account.exec(account.target, 0, removeModuleData);
       //
       const data = socialRecoveryModule.interface.encodeFunctionData("revokeGuardianWithThreshold", [SENTINEL_ADDRESS, guardian1.address, 0]);
-      await expect(account.exec(socialRecoveryModule.target, 0, data)).to.be.revertedWith("GS: method only callable by an enabled module");
+      await expect(account.exec(socialRecoveryModule.target, 0, data)).to.be.revertedWith("GS: method only callable when module is enabled");
     });
     it("can not revoke non guardians", async () => {
       const { account, socialRecoveryModule } = await loadFixture(setupTests);
@@ -236,7 +236,7 @@ describe("GuardianStorage", async () => {
       await account.exec(account.target, 0, removeModuleData);
       //
       const data = socialRecoveryModule.interface.encodeFunctionData("changeThreshold", [1]);
-      await expect(account.exec(socialRecoveryModule.target, 0, data)).to.be.revertedWith("GS: method only callable by an enabled module");
+      await expect(account.exec(socialRecoveryModule.target, 0, data)).to.be.revertedWith("GS: method only callable when module is enabled");
     });
     it("reverts if threshold is higher than guardians count", async () => {
       const { account, socialRecoveryModule } = await loadFixture(setupTests);
