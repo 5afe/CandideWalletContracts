@@ -64,6 +64,9 @@ function requireSocialRecoveryModuleEnabled() {
     require(safeContract.isModuleEnabled(currentContract));
 }
 
+// Helper functions to be used in rules that require the recovery to be initiated.
+// Pending recovery means a non-zero `executeAfter` timestamp in the `recoveryRequests` mapping (the smart contract checks it the same way)
+// and a non-zero `walletsNonces`.
 function requireInitiatedRecovery(address wallet) {
     require currentContract.recoveryRequests[safeContract].executeAfter > 0;
     require currentContract.walletsNonces[safeContract] > 0;
@@ -404,7 +407,8 @@ rule cancelRecoveryDoesNotAffectOtherWallet(env e, address otherWallet) {
         otherWalletNonceBefore == currentContract.walletsNonces[otherWallet];
 }
 
-rule cantFinalizeRecoveryBeforeDelayPeriod(env e) {
+// Can finalize recovery only after delay period
+rule canFinalizeRecoveryOnlyAfterDelayPeriod(env e) {
     requireInitiatedRecovery(safeContract);
 
     uint64 recoveryTimestamp = currentContract.recoveryRequests[safeContract].executeAfter;
