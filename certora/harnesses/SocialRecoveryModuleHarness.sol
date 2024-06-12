@@ -31,4 +31,19 @@ contract SocialRecoveryModuleHarness is SocialRecoveryModule {
             count++;
         }
     }
+
+    function checkSignatures(address _wallet, bytes32 recoveryHash, SignatureData[] memory _signatures) public view {
+        address lastSigner = address(0);
+        for (uint256 i = 0; i < _signatures.length; i++) {
+            SignatureData memory value = _signatures[i];
+            if (value.signature.length == 0) {
+                require(isGuardian(_wallet, msg.sender), "SM: sender not a guardian");
+                require(msg.sender == value.signer, "SM: null signature should have the signer as the sender");
+            } else {
+                validateGuardianSignature(_wallet, recoveryHash, value.signer, value.signature);
+            }
+            require(value.signer > lastSigner, "SM: duplicate signers/invalid ordering");
+            lastSigner = value.signer;
+        }
+    }
 }
