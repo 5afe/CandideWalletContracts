@@ -310,14 +310,14 @@ rule confirmRecoveryIsInitiatedOnlyByGuardian(env e, address[] newOwners, uint25
     bytes32 recoveryHash = currentContract.getRecoveryHash(safeContract, newOwners, newThreshold, nonce);
 
     currentContract.confirmRecovery@withrevert(e, safeContract, newOwners, newThreshold, execute);
-    bool isReverted = lastReverted;
+    bool success = !lastReverted;
 
     // Check if the recovery initiation started.
-    assert !isReverted =>
+    assert success =>
         currentContract.isGuardian(safeContract, e.msg.sender) &&
         currentContract.confirmedHashes[recoveryHash][e.msg.sender];
     // Check if the recovery is executed as well.
-    assert !isReverted && execute =>
+    assert success && execute =>
         to_mathint(currentContract.recoveryRequests[safeContract].executeAfter) == e.block.timestamp + currentContract.recoveryPeriod &&
         currentContract.recoveryRequests[safeContract].newThreshold == newThreshold;
 }
