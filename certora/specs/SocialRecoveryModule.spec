@@ -437,16 +437,15 @@ rule canFinalizeRecoveryOnlyAfterDelayPeriod(env e) {
     assert success => require_uint64(e.block.timestamp) >= recoveryTimestamp, "Recovery finalized before delay period";
 }
 
-// Recovery can be finalized by anyone after the delay period is over.
+// Recovery can be finalized by anyone. But the success of the transaction depends on the delay period.
 rule anyoneCanFinalizeRecovery(env e) {
     uint64 executeAfter = currentContract.recoveryRequests[safeContract].executeAfter;
 
     requireInitiatedRecovery(safeContract);
 
     require e.msg.value == 0;
-    // require require_uint64(e.block.timestamp) >= currentContract.recoveryRequests[safeContract].executeAfter;
     require safeContract.getOwners().length > 0;
-    // This is to ensure that new owners are not guardians. We cannot use `isGuardian` due to use of quantifiers.
+    // The contract doesn't allow guardians as new owners, hence we require it. We cannot use `isGuardian` due to use of quantifiers.
     require forall uint256 i.
         !(currentContract.recoveryRequests[safeContract].newOwners[i] != SENTINEL() &&
         currentContract.entries[safeContract].guardians[currentContract.recoveryRequests[safeContract].newOwners[i]] != 0);
