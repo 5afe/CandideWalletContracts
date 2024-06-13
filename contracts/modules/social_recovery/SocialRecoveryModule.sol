@@ -296,7 +296,10 @@ contract SocialRecoveryModule is GuardianStorage {
     }
 
     /**
-     * @notice Invalidates the wallet's nonce to prevent replay attacks.
+     * @notice Invalidates the wallet's nonce. This will invalidate existing
+     * recovery confirmations from guardians and can be used either to cancel
+     * the process of collecting confirmations from guardians or when rotating
+     * the guardian configuration to prevent "shadow" confirmations.
      * @dev This function should only be used between initiation and execution of a recovery.
      */
     function invalidateNonce() external {
