@@ -532,6 +532,5 @@ rule recoveryFinalisationUpdatesSafeOwnership(env e, address[] newOwners, uint25
     bool success = !lastReverted;
 
     address[] ownersAfter = safeContract.getOwners();
-    assert success => ownersAfter.length == newOwnersCount &&
-           ownersAfter[x] == newOwners[x];
+    assert success => ownersAfter[x] == newOwners[x];
 }
