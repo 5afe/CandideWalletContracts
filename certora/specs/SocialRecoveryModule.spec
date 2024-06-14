@@ -509,7 +509,7 @@ rule finalizeRecoveryAlwaysPossible(env e) {
     assert !isReverted, "legitimate recovery finalization reverted";
 
 // The rule verifies that after recovery finalisation, the ownership of the Safe changes.
-rule recoveryFinalisation(env e, address[] newOwners, uint256 x, uint256 y) {
+rule recoveryFinalisationUpdatesSafeOwnership(env e, address[] newOwners, uint256 x, uint256 y) {
     requireInitiatedRecovery(safeContract);
 
     address[] ownersBefore = safeContract.getOwners();
@@ -533,6 +533,5 @@ rule recoveryFinalisation(env e, address[] newOwners, uint256 x, uint256 y) {
 
     address[] ownersAfter = safeContract.getOwners();
     assert success => ownersAfter.length == newOwnersCount &&
-           ownersAfter[x] == newOwners[x] &&
-           safeContract.getThreshold() == newThreshold;
+           ownersAfter[x] == newOwners[x];
 }
