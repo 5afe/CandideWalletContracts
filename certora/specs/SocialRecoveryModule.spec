@@ -509,36 +509,47 @@ rule finalizeRecoveryAlwaysPossible(env e) {
     assert !isReverted, "legitimate recovery finalization reverted";
 
 // The rule verifies that after recovery finalisation, the ownership of the Safe changes.
-rule recoveryFinalisationUpdatesSafeOwnership(env e, address[] newOwners, uint256 x, uint256 y) {
+
+rule recoveryFinalisation(env e, address[] newOwners) {
     requireInitiatedRecovery(safeContract);
 
-
     address[] ownersBefore = safeContract.getOwners();
+    // y represents any arbitrary index of ownersBefore[].
+    uint256 y;
+    // x represents any arbitrary index of newOwners[].
+    uint256 x;
+
     require safeContract.getThreshold() <= ownersBefore.length;
 
     uint256 newThreshold = currentContract.recoveryRequests[safeContract].newThreshold;
     require newThreshold > 0 && newThreshold <= newOwners.length;
 
-
-    uint256 x1;
-    uint256 y1;
-    require x1 < newOwners.length;
-    require y1 < ownersBefore.length;
-    require newOwners.length == 1 => newOwners[x1] != ownersBefore[y1];
-
     uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
-    // x represents any arbitrary index of newOwners[].
     require x < newOwnersCount;
     require newOwners[x] == currentContract.recoveryRequests[safeContract].newOwners[x];
 
     require ownersBefore.length > 0;
-    // y represents any arbitrary index of ownersBefore[].
     require y < ownersBefore.length;
     require ownersBefore[y] != 0 && ownersBefore[y] != 1;
 
+    uint256 y2;
+    require y2 < ownersBefore.length;
+    uint256 x2;
+    require x2 < newOwnersCount;
+    address possibleOwner;
+    require newOwners[x2] != ownersBefore[y2];
+    
     finalizeRecovery@withrevert(e, safeContract);
     bool success = !lastReverted;
 
     address[] ownersAfter = safeContract.getOwners();
-    assert success => ownersAfter[x] == newOwners[x];
+    assert success => ownersAfter.length == newOwnersCount &&
+            ownersAfter[x] == newOwners[x];
+           // safeContract.getThreshold() == newThreshold;
+
+    uint256 y1;
+    uint256 x1;
+    require y1 < ownersBefore.length;
+    require possibleOwner == ownersBefore[y1];
+    assert success => safeContract.isOwner(possibleOwner) => (exists uint256 i. (i <= newOwners.length && newOwners[i] == possibleOwner));
 }
