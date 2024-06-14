@@ -2,15 +2,9 @@ using SafeHarness as safeContract;
 
 methods {
     // Social Recovery Module Functions
-    function getRecoveryHash(address, address[], uint256, uint256) internalg returns (bytes32) => CONSTANT;
-
+    function getRecoveryHash(address, address[] calldata, uint256, uint256) internal returns (bytes32) => CONSTANT;
     function nonce(address) external returns (uint256) envfree;
     function SignatureChecker.isValidSignatureNow(address signer, bytes32 dataHash, bytes memory signatures) internal returns (bool) => isValidSignatureNowSummary(signer, dataHash, signatures);
-
-    // Safe Functions
-    function safeContract.isOwner(address owner) external returns (bool) envfree;
-    function safeContract.getOwners() external returns (address[] memory) envfree;
-    function safeContract.getThreshold() external returns (uint256) envfree;
 
     // Wildcard Functions
     function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external with (env e) => summarizeSafeExecTransactionFromModule(calledContract, e, to, value, data, operation) expect bool ALL;
