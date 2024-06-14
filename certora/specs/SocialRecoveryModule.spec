@@ -513,11 +513,12 @@ rule recoveryFinalisation(env e, address[] newOwners) {
     requireInitiatedRecovery(safeContract);
 
     address[] ownersBefore = safeContract.getOwners();
-    uint256 ownersBeforeCount;
     // y represents any arbitrary index of ownersBefore[].
     uint256 y;
     // x represents any arbitrary index of newOwners[].
     uint256 x;
+
+    require safeContract.getThreshold() <= ownersBefore.length;
 
     uint256 newThreshold = currentContract.recoveryRequests[safeContract].newThreshold;
     require newThreshold > 0 && newThreshold <= newOwners.length;
@@ -527,14 +528,27 @@ rule recoveryFinalisation(env e, address[] newOwners) {
     require newOwners[x] == currentContract.recoveryRequests[safeContract].newOwners[x];
 
     require ownersBefore.length > 0;
-    require ownersBeforeCount < ownersBefore.length;
-    require y < ownersBeforeCount;
-    require ownersBefore[ownersBeforeCount] != 0 && ownersBefore[ownersBeforeCount] != 1;
+    require y < ownersBefore.length;
+    require ownersBefore[y] != 0 && ownersBefore[y] != 1;
+
+    uint256 y2;
+    require y2 < ownersBefore.length;
+    uint256 x2;
+    require x2 < newOwnersCount;
+    address possibleOwner;
+    require newOwners[x2] != ownersBefore[y2];
     
     finalizeRecovery@withrevert(e, safeContract);
     bool success = !lastReverted;
 
     address[] ownersAfter = safeContract.getOwners();
     assert success => ownersAfter.length == newOwnersCount &&
-            safeContract.isOwner(newOwners[x]);
+            ownersAfter[x] == newOwners[x];
+           // safeContract.getThreshold() == newThreshold;
+
+    uint256 y1;
+    uint256 x1;
+    require y1 < ownersBefore.length;
+    require possibleOwner == ownersBefore[y1];
+    assert success => safeContract.isOwner(possibleOwner) => (exists uint256 i. (i <= newOwners.length && newOwners[i] == possibleOwner));
 }
