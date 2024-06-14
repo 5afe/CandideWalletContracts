@@ -512,11 +512,19 @@ rule finalizeRecoveryAlwaysPossible(env e) {
 rule recoveryFinalisationUpdatesSafeOwnership(env e, address[] newOwners, uint256 x, uint256 y) {
     requireInitiatedRecovery(safeContract);
 
+
     address[] ownersBefore = safeContract.getOwners();
     require safeContract.getThreshold() <= ownersBefore.length;
 
     uint256 newThreshold = currentContract.recoveryRequests[safeContract].newThreshold;
     require newThreshold > 0 && newThreshold <= newOwners.length;
+
+
+    uint256 x1;
+    uint256 y1;
+    require x1 < newOwners.length;
+    requrie y1 < ownersBefore.length;
+    require newOwners.length == 1 => newOwners[x1] != ownersBefore[y1];
 
     uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
     // x represents any arbitrary index of newOwners[].
