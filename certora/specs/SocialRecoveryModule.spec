@@ -523,7 +523,7 @@ rule recoveryFinalisationUpdatesSafeOwnership(env e, address[] newOwners, uint25
     uint256 x1;
     uint256 y1;
     require x1 < newOwners.length;
-    requrie y1 < ownersBefore.length;
+    require y1 < ownersBefore.length;
     require newOwners.length == 1 => newOwners[x1] != ownersBefore[y1];
 
     uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
