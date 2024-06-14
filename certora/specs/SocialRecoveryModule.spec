@@ -507,4 +507,32 @@ rule finalizeRecoveryAlwaysPossible(env e) {
     bool isReverted = lastReverted;
 
     assert !isReverted, "legitimate recovery finalization reverted";
+
+// The rule verifies that after recovery finalisation, the ownership of the Safe changes.
+rule recoveryFinalisation(env e, address[] newOwners, uint256 x, uint256 y) {
+    requireInitiatedRecovery(safeContract);
+
+    address[] ownersBefore = safeContract.getOwners();
+    require safeContract.getThreshold() <= ownersBefore.length;
+
+    uint256 newThreshold = currentContract.recoveryRequests[safeContract].newThreshold;
+    require newThreshold > 0 && newThreshold <= newOwners.length;
+
+    uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
+    // x represents any arbitrary index of newOwners[].
+    require x < newOwnersCount;
+    require newOwners[x] == currentContract.recoveryRequests[safeContract].newOwners[x];
+
+    require ownersBefore.length > 0;
+    // y represents any arbitrary index of ownersBefore[].
+    require y < ownersBefore.length;
+    require ownersBefore[y] != 0 && ownersBefore[y] != 1;
+
+    finalizeRecovery@withrevert(e, safeContract);
+    bool success = !lastReverted;
+
+    address[] ownersAfter = safeContract.getOwners();
+    assert success => ownersAfter.length == newOwnersCount &&
+           ownersAfter[x] == newOwners[x] &&
+           safeContract.getThreshold() == newThreshold;
 }
