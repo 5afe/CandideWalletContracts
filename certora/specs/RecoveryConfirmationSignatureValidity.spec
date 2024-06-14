@@ -2,7 +2,7 @@ using SafeHarness as safeContract;
 
 methods {
     // Social Recovery Module Functions
-    function getRecoveryHash(address, address[], uint256, uint256) internal returns (bytes32) => CONSTANT;
+    function getRecoveryHash(address, address[], uint256, uint256) internalg returns (bytes32) => CONSTANT;
 
     function nonce(address) external returns (uint256) envfree;
     function SignatureChecker.isValidSignatureNow(address signer, bytes32 dataHash, bytes memory signatures) internal returns (bool) => isValidSignatureNowSummary(signer, dataHash, signatures);
