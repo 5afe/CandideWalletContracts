@@ -541,9 +541,11 @@ rule recoveryFinalisation(env e, address[] newOwners) {
     finalizeRecovery@withrevert(e, safeContract);
     bool success = !lastReverted;
 
+    uint256 x3;
+    require x3 < newOwnersCount;
     address[] ownersAfter = safeContract.getOwners();
     assert success => ownersAfter.length == newOwnersCount &&
-            ownersAfter[x] == newOwners[x];
+            ownersAfter[x3] == newOwners[x3];
            // safeContract.getThreshold() == newThreshold;
 
     uint256 y1;
