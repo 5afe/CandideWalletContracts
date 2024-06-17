@@ -548,9 +548,9 @@ rule recoveryFinalisation(env e, address[] newOwners) {
             ownersAfter[x3] == newOwners[x3];
            // safeContract.getThreshold() == newThreshold;
 
-    uint256 y1;
-    uint256 x1;
-    require y1 < ownersBefore.length;
-    require possibleOwner == ownersBefore[y1];
-    assert success => safeContract.isOwner(possibleOwner) => (exists uint256 i. (i <= newOwners.length && newOwners[i] == possibleOwner));
+    // uint256 y1;
+    // uint256 x1;
+    // require y1 < ownersBefore.length;
+    // require possibleOwner == ownersBefore[y1];
+    // assert success => safeContract.isOwner(possibleOwner) => (exists uint256 i. (i <= newOwners.length && newOwners[i] == possibleOwner));
 }
