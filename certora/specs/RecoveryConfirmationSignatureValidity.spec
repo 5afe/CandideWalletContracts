@@ -33,6 +33,8 @@ function summarizeSafeExecTransactionFromModule(address callee, env e, address t
 // so we're summarizing the `isValidSignatureNow` function with a ghost function to avoid this issue and timeouts
 ghost isValidSignatureNowSummary(address, bytes32, bytes) returns bool;
 
+// There's no method to get a confirmation count per recovery hash, so we're using a ghost variable 
+// with a hook to increment it when a recovery is confirmed.
 persistent ghost mathint recoveryConfirmationCount {
     init_state axiom recoveryConfirmationCount == 0;
 }
@@ -110,7 +112,7 @@ rule noShadowApprovals(env e) {
 
     multiConfirmRecovery(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
 
-    assert forall uint256 i. 0 <= i && i < signatures.length => currentContract.confirmedHashes[recoveryHash][signatures[i].signer], "Approvals were not correctly set";
+    assert forall uint256 i. i < signatures.length => currentContract.confirmedHashes[recoveryHash][signatures[i].signer], "Approvals were not correctly set";
     assert !currentContract.confirmedHashes[recoveryHash][otherAddress], "Other address should not be able to confirm recovery";
 }
 
