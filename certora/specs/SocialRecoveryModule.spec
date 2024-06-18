@@ -469,7 +469,7 @@ rule invalidatingNonceInRecovery(env e, address guardian, address[] newOwners, u
 
 // This rule verifies that Recovery can be finalized after the delay period.
 // This rule requires other conditions to be met as well:
-// - The recovery request should be initiated.
+// - The recovery request should be initiated (i.e. `executeAfter != 0` and `walletsNonce[safeContract] > 0`).
 // - No ether should be sent with the transaction.
 // - New owner should not be a guardian.
 // - Existing Safe owner count should be more than zero.
