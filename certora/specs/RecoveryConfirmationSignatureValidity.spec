@@ -4,10 +4,13 @@ methods {
     // Social Recovery Module Functions
     function nonce(address) external returns (uint256) envfree;
     function isGuardian(address, address) external returns (bool) envfree;
+    function compareByteArrays(bytes, bytes) external returns (bool) envfree;
 
     // Social Recovery Module Summaries
     function getRecoveryHash(address, address[] calldata, uint256, uint256) internal returns (bytes32) => CONSTANT;
-    function SignatureChecker.isValidSignatureNow(address signer, bytes32 dataHash, bytes memory signatures) internal returns (bool) => isValidSignatureNowSummary(signer, dataHash, signatures);
+    // The prover analysis fails in functions with heavy use of assembly code,
+    // so we're summarizing the `isValidSignatureNow` function with a ghost function to avoid this issue and timeouts
+    function SignatureChecker.isValidSignatureNow(address signer, bytes32 dataHash, bytes memory signature) internal returns (bool) => isValidSignatureNowSummary(signer, dataHash, signature);
 
     // Wildcard Functions
     function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external with (env e) => summarizeSafeExecTransactionFromModule(calledContract, e, to, value, data, operation) expect bool ALL;
@@ -26,6 +29,8 @@ function summarizeSafeExecTransactionFromModule(address callee, env e, address t
     return _;
 }
 
+// The prover analysis fails in functions with heavy use of assembly code,
+// so we're summarizing the `isValidSignatureNow` function with a ghost function to avoid this issue and timeouts
 ghost isValidSignatureNowSummary(address, bytes32, bytes) returns bool;
 
 persistent ghost mathint recoveryConfirmationCount {
@@ -57,13 +62,14 @@ rule multiConfirmRecoveryOnlyWithLegitimateSignatures(env e) {
     bool signatureCheckSuccess = !lastReverted;
 
     multiConfirmRecovery(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
+    bool multiConfirmRecoverySuccess = !lastReverted;
 
-    assert signatureCheckSuccess, "Recovery confirmed with invalid signatures";
+    assert signatureCheckSuccess <=> multiConfirmRecoverySuccess, "Recovery confirmed with invalid signatures";
 }
 
 // This rule checks that the number of approvals counted by the contract is equal to the number of valid signatures.
 rule approvalsCountShouldEqualTheAmountOfSignatures(env e) {
-    require recoveryConfirmationCount == 0;
+    mathint recoveryConfirmationCountBefore = recoveryConfirmationCount;
     address _wallet;
     address[] _newOwners;
     uint256 _newThreshold;
@@ -80,7 +86,7 @@ rule approvalsCountShouldEqualTheAmountOfSignatures(env e) {
 
     multiConfirmRecovery(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
 
-    assert signatures.length == assert_uint256(recoveryConfirmationCount), "More approvals counted than valid signatures";
+    assert to_mathint(signatures.length) == recoveryConfirmationCount - recoveryConfirmationCountBefore, "More approvals counted than valid signatures";
 }
 
 // This rule checks that only supplied signatures and signers are counted as approvals.
@@ -108,7 +114,9 @@ rule noShadowApprovals(env e) {
     assert !currentContract.confirmedHashes[recoveryHash][otherAddress], "Other address should not be able to confirm recovery";
 }
 
-rule duplicateSignaturesRevert(env e) {
+// This rule verifies that specifying the same signer twice in the signatures array will cause the transaction to revert.
+// We cannot really verify the actual signature duplication because we summarize the `isValidSignatureNow` function, which makes the run time out if not summarized.
+rule duplicateSignersRevert(env e) {
     address _wallet;
     address[] _newOwners;
     uint256 _newThreshold;
@@ -122,10 +130,11 @@ rule duplicateSignaturesRevert(env e) {
         _newThreshold,
         walletNonce
     );
-    require signatures.length == 2;
-    require signatures[0].signer == signatures[1].signer;
+    uint256 i1; uint256 i2;
+    require i1 != i2;
+    require signatures[i1].signer == signatures[i2].signer;
 
     multiConfirmRecovery@withrevert(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
 
-    assert lastReverted, "Duplicate signatures should revert";
+    assert lastReverted, "Duplicate signers should revert";
 }

@@ -82,4 +82,8 @@ contract SocialRecoveryModuleHarness is SocialRecoveryModule {
             }
         }
     }
+
+    function compareByteArrays(bytes memory a, bytes memory b) public pure returns (bool) {
+        return keccak256(a) == keccak256(b);
+    }
 }
