@@ -466,6 +466,24 @@ rule invalidatingNonceInRecovery(env e, address guardian, address[] newOwners, u
     bool isReverted = lastReverted;
     assert success => isReverted;
 }
+  
+// This rule verifies that the safe can make changes for itself, and not for other safe contracts.
+rule doesNotAffectOtherAccount(env e, method f, calldataarg args, address otherSafeContract) filtered {
+    f -> !f.isView
+} {
+    address guardian;
+    bool isGuardian = currentContract.isGuardian(otherSafeContract, guardian);
+    uint256 threshold = currentContract.threshold(otherSafeContract);
+    uint256 guardiansCount = currentContract.guardiansCount(otherSafeContract);
+
+    require e.msg.sender != otherSafeContract;
+
+    f(e, args);
+
+    assert isGuardian == currentContract.isGuardian(otherSafeContract, guardian) &&
+        threshold == currentContract.threshold(otherSafeContract) &&
+        guardiansCount == currentContract.guardiansCount(otherSafeContract);
+}
 
 // This rule verifies that Recovery can be finalized after the delay period.
 // This rule requires other conditions to be met as well:
