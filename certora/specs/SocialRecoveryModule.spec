@@ -466,3 +466,30 @@ rule invalidatingNonceInRecovery(env e, address guardian, address[] newOwners, u
     bool isReverted = lastReverted;
     assert success => isReverted;
 }
+
+// This rule verifies that the safe can only add/revoke guardians and thresholds for itself, and not for other safe contracts.
+rule safeContractAccessToGuardiansAndThreshold(env e, address guardian, uint256 threshold, address otherSafeContract) {
+    requireGuardiansLinkedListIntegrity(guardian);
+    require e.msg.sender == safeContract;
+    require safeContract != otherSafeContract;
+
+    bool isGuardianInOtherSafeContract = currentContract.isGuardian(otherSafeContract, guardian);
+
+    currentContract.addGuardianWithThreshold@withrevert(e, guardian, threshold);
+    bool addGuardianSuccess = !lastReverted;
+
+    assert addGuardianSuccess =>
+        currentContract.isGuardian(safeContract, guardian) &&
+        threshold == currentContract.entries[safeContract].threshold &&
+        (isGuardianInOtherSafeContract == currentContract.isGuardian(otherSafeContract, guardian));
+    
+    uint256 currentCount = currentContract.entries[safeContract].count;
+
+    currentContract.revokeGuardianWithThreshold@withrevert(e, SENTINEL(), guardian, threshold);
+    bool revokeGuardianSuccess = !lastReverted;
+
+    assert addGuardianSuccess && threshold < currentCount =>
+        revokeGuardianSuccess &&
+        threshold == currentContract.entries[safeContract].threshold &&
+        (isGuardianInOtherSafeContract == currentContract.isGuardian(otherSafeContract, guardian));
+}
