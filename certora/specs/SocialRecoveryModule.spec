@@ -467,28 +467,20 @@ rule invalidatingNonceInRecovery(env e, address guardian, address[] newOwners, u
     assert success => isReverted;
 }
 
-// This rule verifies that the safe can only add/revoke guardians and thresholds for itself, and not for other safe contracts.
-rule safeContractAccessToGuardiansAndThreshold(env e, address guardian, uint256 threshold, address otherSafeContract) {
-    requireGuardiansLinkedListIntegrity(guardian);
-    require e.msg.sender == safeContract;
-    require safeContract != otherSafeContract;
+// This rule verifies that the safe can make changes for itself, and not for other safe contracts.
+rule doesNotAffectOtherAccount(env e, method f, calldataarg args, address otherSafeContract) filtered {
+    f -> !f.isView
+} {
+    address guardian;
+    bool isGuardian = currentContract.isGuardian(otherSafeContract, guardian);
+    uint256 threshold = currentContract.threshold(otherSafeContract);
+    uint256 guardiansCount = currentContract.guardiansCount(otherSafeContract);
 
-    bool isGuardianInOtherSafeContract = currentContract.isGuardian(otherSafeContract, guardian);
+    require e.msg.sender != otherSafeContract;
 
-    currentContract.addGuardianWithThreshold(e, guardian, threshold);
+    f(e, args);
 
-    assert currentContract.isGuardian(safeContract, guardian) &&
-        threshold == currentContract.entries[safeContract].threshold &&
-        (isGuardianInOtherSafeContract == currentContract.isGuardian(otherSafeContract, guardian));
-    
-    uint256 currentGuardiansCount = currentContract.entries[safeContract].count;
-
-    currentContract.revokeGuardianWithThreshold@withrevert(e, SENTINEL(), guardian, threshold);
-    bool success = !lastReverted;
-
-    assert threshold < currentGuardiansCount =>
-        success &&
-        !currentContract.isGuardian(safeContract, guardian) &&
-        threshold == currentContract.entries[safeContract].threshold &&
-        (isGuardianInOtherSafeContract == currentContract.isGuardian(otherSafeContract, guardian));
+    assert isGuardian == currentContract.isGuardian(otherSafeContract, guardian) &&
+        threshold == currentContract.threshold(otherSafeContract) &&
+        guardiansCount == currentContract.guardiansCount(otherSafeContract);
 }
