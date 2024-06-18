@@ -78,11 +78,9 @@ rule approvalsCountShouldEqualTheAmountOfSignatures(env e) {
         walletNonce
     );
 
-    uint256 validSignatures = countValidSignatures(e, _wallet, recoveryHash, signatures);
-
     multiConfirmRecovery(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
 
-    assert validSignatures == assert_uint256(recoveryConfirmationCount), "more approvals counted than valid signatures";
+    assert signatures.length == assert_uint256(recoveryConfirmationCount), "More approvals counted than valid signatures";
 }
 
 // This rule checks that only supplied signatures and signers are counted as approvals.
@@ -91,7 +89,6 @@ rule noShadowApprovals(env e) {
     address[] _newOwners;
     uint256 _newThreshold;
     uint256 walletNonce = currentContract.nonce(_wallet);
-    uint256 signatureIndex;
     SocialRecoveryModule.SignatureData[] signatures;
     bool _execute;
     bytes32 recoveryHash = getRecoveryHash(
@@ -102,11 +99,33 @@ rule noShadowApprovals(env e) {
         walletNonce
     );
     address otherAddress;
-    require signatures[signatureIndex].signer != otherAddress;
-    require !currentContract.confirmedHashes[recoveryHash][otherAddress];
+    // We need to correctly initialize pre-state to ensure that the `otherAddress` is not a signer and has not confirmed the recovery.
+    require !currentContract.isGuardian(_wallet, otherAddress) && !currentContract.confirmedHashes[recoveryHash][otherAddress];
 
     multiConfirmRecovery(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
 
-    assert forall uint256 i. 0 <= i && i < signatures.length => currentContract.confirmedHashes[recoveryHash][signatures[i].signer];
-    assert !currentContract.confirmedHashes[recoveryHash][otherAddress];
+    assert forall uint256 i. 0 <= i && i < signatures.length => currentContract.confirmedHashes[recoveryHash][signatures[i].signer], "Approvals were not correctly set";
+    assert !currentContract.confirmedHashes[recoveryHash][otherAddress], "Other address should not be able to confirm recovery";
+}
+
+rule duplicateSignaturesRevert(env e) {
+    address _wallet;
+    address[] _newOwners;
+    uint256 _newThreshold;
+    uint256 walletNonce = currentContract.nonce(_wallet);
+    SocialRecoveryModule.SignatureData[] signatures;
+    bool _execute;
+    bytes32 recoveryHash = getRecoveryHash(
+        e,
+        _wallet,
+        _newOwners,
+        _newThreshold,
+        walletNonce
+    );
+    require signatures.length == 2;
+    require signatures[0].signer == signatures[1].signer;
+
+    multiConfirmRecovery@withrevert(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
+
+    assert lastReverted, "Duplicate signatures should revert";
 }

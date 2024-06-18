@@ -184,7 +184,6 @@ contract SocialRecoveryModule is GuardianStorage {
         uint256 _approvalCount = getRecoveryApprovals(_wallet, _newOwners, _newThreshold);
         require(_approvalCount >= guardiansThreshold, "SM: confirmed signatures less than threshold");
         _executeRecovery(_wallet, _newOwners, _newThreshold, _approvalCount);
-        confirmedHashes[recoveryHash][address(0x1)] = true;
     }
 
     /**
