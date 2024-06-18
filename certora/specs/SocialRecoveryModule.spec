@@ -482,7 +482,7 @@ rule finalizeRecoveryAlwaysPossible(env e) {
 
     require safeContract.getOwners().length > 0;
     require e.msg.value == 0;
-    require require_uint64(e.block.timestamp) > executeAfter;
+    require require_uint64(e.block.timestamp) >= executeAfter;
     require executeAfter > 0;
 
     currentContract.finalizeRecovery@withrevert(e, safeContract);
