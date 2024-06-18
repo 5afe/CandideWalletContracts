@@ -475,21 +475,20 @@ rule safeContractAccessToGuardiansAndThreshold(env e, address guardian, uint256 
 
     bool isGuardianInOtherSafeContract = currentContract.isGuardian(otherSafeContract, guardian);
 
-    currentContract.addGuardianWithThreshold@withrevert(e, guardian, threshold);
-    bool addGuardianSuccess = !lastReverted;
+    currentContract.addGuardianWithThreshold(e, guardian, threshold);
 
-    assert addGuardianSuccess =>
-        currentContract.isGuardian(safeContract, guardian) &&
+    assert currentContract.isGuardian(safeContract, guardian) &&
         threshold == currentContract.entries[safeContract].threshold &&
         (isGuardianInOtherSafeContract == currentContract.isGuardian(otherSafeContract, guardian));
     
-    uint256 currentCount = currentContract.entries[safeContract].count;
+    uint256 currentGuardiansCount = currentContract.entries[safeContract].count;
 
     currentContract.revokeGuardianWithThreshold@withrevert(e, SENTINEL(), guardian, threshold);
-    bool revokeGuardianSuccess = !lastReverted;
+    bool success = !lastReverted;
 
-    assert addGuardianSuccess && threshold < currentCount =>
-        revokeGuardianSuccess &&
+    assert threshold < currentGuardiansCount =>
+        success &&
+        !currentContract.isGuardian(safeContract, guardian) &&
         threshold == currentContract.entries[safeContract].threshold &&
         (isGuardianInOtherSafeContract == currentContract.isGuardian(otherSafeContract, guardian));
 }
