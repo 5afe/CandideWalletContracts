@@ -506,5 +506,5 @@ rule finalizeRecoveryAlwaysPossible(env e) {
     currentContract.finalizeRecovery@withrevert(e, safeContract);
     bool isReverted = lastReverted;
 
-    assert !isReverted;
+    assert !isReverted, "legitimate recovery finalization reverted";
 }
