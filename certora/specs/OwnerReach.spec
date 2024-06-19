@@ -260,134 +260,6 @@ hook Sload uint256 value safeContract.ownerCount {
     require ghostOwnerCount == value;
 }
 
-// invariant reachCount()
-    // forall address X. forall address Y. reach(X, Y) =>
-    //     ghostSuccCount(X) >= ghostSuccCount(Y)
-    // {
-    //     preserved {
-    //         requireInvariant reach_invariant();
-    //         requireInvariant reach_null();
-    //         requireInvariant inListReachable();
-    //         requireInvariant reach_next();
-    //         requireInvariant nextNull();
-    //         requireInvariant reachableInList();
-    //         requireInvariant reachHeadNext();
-    //         requireInvariant thresholdSet();
-    //         requireInvariant count_correct();
-    //     }
-    // }
-
-// invariant count_correct()
-//     forall address X. ghostSuccCount(X) == count_expected(X)
-//     {
-//         preserved {
-//             requireInvariant reach_invariant();
-//             requireInvariant reach_null();
-//             requireInvariant inListReachable();
-//             requireInvariant reach_next();
-//             requireInvariant nextNull();
-//             requireInvariant reachableInList();
-//             requireInvariant reachHeadNext();
-//             requireInvariant thresholdSet();
-//         }
-//     }
-
-// invariant ownercount_correct()
-    // ghostSuccCount(SENTINEL) == ghostOwnerCount + 1
-    // {
-    //     preserved  {
-    //         requireInvariant reach_invariant();
-    //         requireInvariant reach_null();
-    //         requireInvariant inListReachable();
-    //         requireInvariant reach_next();
-    //         requireInvariant nextNull();
-    //         requireInvariant reachableInList();
-    //         requireInvariant reachHeadNext();
-    //         requireInvariant reachCount();
-    //         requireInvariant thresholdSet();
-    //     }
-    // }
-
-// rule isOwnerDoesNotRevert {
-//     address addr;
-//     isOwner@withrevert(addr);
-//     assert !lastReverted, "isOwner should not revert";
-// }
-
-// rule isOwnerNotSelfOrSentinal {
-//     address addr;
-//     require addr == currentContract || addr == SENTINEL;
-//     requireInvariant self_not_owner();
-//     bool result = isOwner(addr);
-//     assert result == false, "currentContract or SENTINEL must not be owners";
-// }
-
-// rule isOwnerInList {
-//     address addr;
-//     require addr != SENTINEL;
-//     bool result = isOwner(addr);
-//     assert result == (ghostOwners[addr] != NULL), "isOwner returns wrong result";
-// }
-
-// rule addOwnerChangesOwners {
-//     address other;
-//     address toAdd;
-//     uint256 threshold;
-//     env e;
-
-//     requireInvariant reach_null();
-//     requireInvariant reach_invariant();
-//     requireInvariant inListReachable();
-//     requireInvariant reachableInList();
-//     require other != toAdd;
-//     bool isOwnerOtherBefore = isOwner(other);
-//     addOwnerWithThreshold(e, toAdd, threshold);
-
-//     assert isOwner(toAdd), "addOwner should add the given owner";
-//     assert isOwner(other) == isOwnerOtherBefore, "addOwner should not remove or add other owners";
-// }
-
-// rule removeOwnerChangesOwners {
-//     address other;
-//     address toRemove;
-//     address prevOwner;
-//     uint256 threshold;
-//     env e;
-
-//     requireInvariant reach_null();
-//     requireInvariant reach_invariant();
-//     requireInvariant inListReachable();
-//     requireInvariant reachableInList();
-//     require other != toRemove;
-//     bool isOwnerOtherBefore = isOwner(other);
-//     removeOwner(e, prevOwner, toRemove, threshold);
-
-//     assert !isOwner(toRemove), "removeOwner should remove the given owner";
-//     assert isOwner(other) == isOwnerOtherBefore, "removeOwner should not remove or add other owners";
-// }
-
-// rule swapOwnerChangesOwners {
-//     address other;
-//     address oldOwner;
-//     address newOwner;
-//     address prevOwner;
-//     env e;
-
-//     requireInvariant reach_null();
-//     requireInvariant reach_invariant();
-//     requireInvariant inListReachable();
-//     requireInvariant reachableInList();
-//     require other != oldOwner && other != newOwner;
-//     bool isOwnerOtherBefore = isOwner(other);
-//     bool isOwnerOldBefore = isOwner(oldOwner);
-//     bool isOwnerNewBefore = isOwner(newOwner);
-//     swapOwner(e, prevOwner, oldOwner, newOwner);
-
-//     assert isOwnerOldBefore && !isOwner(oldOwner), "swapOwner should remove old owner";
-//     assert !isOwnerNewBefore && isOwner(newOwner), "swapOwner should add new owner";
-//     assert isOwner(other) == isOwnerOtherBefore, "swapOwner should not remove or add other owners";
-// }
-
 // Helper functions to be used in rules that require the recovery to be initiated.
 // Pending recovery means:
 // - a non-zero `executeAfter` timestamp in the `recoveryRequests` mapping (the smart contract checks it the same way)
@@ -415,8 +287,8 @@ rule recoveryFinalisation(env e, address[] newOwners) {
 
     require safeContract.getThreshold() <= ownersBefore.length;
 
-    uint256 newThreshold = currentContract.recoveryRequests[safeContract].newThreshold;
-    require newThreshold > 0 && newThreshold <= newOwners.length;
+    // uint256 newThreshold = currentContract.recoveryRequests[safeContract].newThreshold;
+    // require newThreshold > 0 && newThreshold <= newOwners.length;
 
     uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
     require newOwnersCount == newOwners.length;
@@ -425,19 +297,18 @@ rule recoveryFinalisation(env e, address[] newOwners) {
 
     // uint256 m;
     // require m < newOwnersCount;
-    require forall uint256 m. m < newOwnersCount => ghostOwners[newOwners[m]] == 0;
+    // require forall uint256 m. m < newOwnersCount => ghostOwners[newOwners[m]] == 0;
     // require forall uint256 p. forall uint256 q. (p < newOwnersCount && q < ownersBefore.length) => newOwners[p] != ownersBefore[q];
 
     require ownersBefore.length > 0;
-    require y < ownersBefore.length;
-    require ownersBefore[y] != 0 && ownersBefore[y] != 1;
+    // require y < ownersBefore.length;
+    // require ownersBefore[y] != 0 && ownersBefore[y] != 1;
 
-    uint256 y2;
-    require y2 < ownersBefore.length;
-    uint256 x2;
-    require x2 < newOwnersCount;
-    address possibleOwner;
-    require newOwners[x2] != ownersBefore[y2];
+    // uint256 y2;
+    // require y2 < ownersBefore.length;
+    // uint256 x2;
+    // require x2 < newOwnersCount;
+    // require newOwners[x2] != ownersBefore[y2];
     
     finalizeRecovery@withrevert(e, safeContract);
     bool success = !lastReverted;
@@ -445,14 +316,6 @@ rule recoveryFinalisation(env e, address[] newOwners) {
     uint256 x3;
     require x3 < newOwnersCount;
     address[] ownersAfter = safeContract.getOwners();
-    assert success => ownersAfter.length == newOwnersCount;
-
-    assert success => ghostOwners[newOwners[x3]] !=0;
-           // safeContract.getThreshold() == newThreshold;
-
-    // uint256 y1;
-    // uint256 x1;
-    // require y1 < ownersBefore.length;
-    // require possibleOwner == ownersBefore[y1];
-    // assert success => safeContract.isOwner(possibleOwner) => (exists uint256 i. (i <= newOwners.length && newOwners[i] == possibleOwner));
+    assert success => ownersAfter.length == newOwnersCount && 
+                        safeContract.isOwner(newOwners[x3]);
 }
