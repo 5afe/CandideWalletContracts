@@ -510,7 +510,7 @@ rule finalizeRecoveryAlwaysPossible(env e) {
     bool isReverted = lastReverted;
 
     assert !isReverted, "legitimate recovery finalization reverted";
-
+}
 // persistent ghost mapping(address => address) ghostOwners {
 //     init_state axiom forall address X. to_mathint(ghostOwners[X]) == 0;
 // }
