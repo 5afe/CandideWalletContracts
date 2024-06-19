@@ -166,7 +166,7 @@ invariant reachHeadNext()
         }
     }
 
-// reach encodes a linear order.  This axiom corresponds to Table 2 in [1].
+// reach encodes a linear order. This axiom corresponds to Table 2 in [1].
 invariant reach_invariant()
     forall address X. forall address Y. forall address Z. (
         reach(X, X)
@@ -287,29 +287,13 @@ rule recoveryFinalisation(env e, address[] newOwners) {
 
     require safeContract.getThreshold() <= ownersBefore.length;
 
-    // uint256 newThreshold = currentContract.recoveryRequests[safeContract].newThreshold;
-    // require newThreshold > 0 && newThreshold <= newOwners.length;
-
     uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
     require newOwnersCount == newOwners.length;
     require x < newOwnersCount;
     require newOwners[x] == currentContract.recoveryRequests[safeContract].newOwners[x];
 
-    // uint256 m;
-    // require m < newOwnersCount;
-    // require forall uint256 m. m < newOwnersCount => ghostOwners[newOwners[m]] == 0;
-    // require forall uint256 p. forall uint256 q. (p < newOwnersCount && q < ownersBefore.length) => newOwners[p] != ownersBefore[q];
-
     require ownersBefore.length > 0;
-    // require y < ownersBefore.length;
-    // require ownersBefore[y] != 0 && ownersBefore[y] != 1;
 
-    // uint256 y2;
-    // require y2 < ownersBefore.length;
-    // uint256 x2;
-    // require x2 < newOwnersCount;
-    // require newOwners[x2] != ownersBefore[y2];
-    
     finalizeRecovery@withrevert(e, safeContract);
     bool success = !lastReverted;
 
