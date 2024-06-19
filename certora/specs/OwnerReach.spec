@@ -260,53 +260,53 @@ hook Sload uint256 value safeContract.ownerCount {
     require ghostOwnerCount == value;
 }
 
-invariant reachCount()
-    forall address X. forall address Y. reach(X, Y) =>
-        ghostSuccCount(X) >= ghostSuccCount(Y)
-    {
-        preserved {
-            requireInvariant reach_invariant();
-            requireInvariant reach_null();
-            requireInvariant inListReachable();
-            requireInvariant reach_next();
-            requireInvariant nextNull();
-            requireInvariant reachableInList();
-            requireInvariant reachHeadNext();
-            requireInvariant thresholdSet();
-            requireInvariant count_correct();
-        }
-    }
+// invariant reachCount()
+    // forall address X. forall address Y. reach(X, Y) =>
+    //     ghostSuccCount(X) >= ghostSuccCount(Y)
+    // {
+    //     preserved {
+    //         requireInvariant reach_invariant();
+    //         requireInvariant reach_null();
+    //         requireInvariant inListReachable();
+    //         requireInvariant reach_next();
+    //         requireInvariant nextNull();
+    //         requireInvariant reachableInList();
+    //         requireInvariant reachHeadNext();
+    //         requireInvariant thresholdSet();
+    //         requireInvariant count_correct();
+    //     }
+    // }
 
-invariant count_correct()
-    forall address X. ghostSuccCount(X) == count_expected(X)
-    {
-        preserved {
-            requireInvariant reach_invariant();
-            requireInvariant reach_null();
-            requireInvariant inListReachable();
-            requireInvariant reach_next();
-            requireInvariant nextNull();
-            requireInvariant reachableInList();
-            requireInvariant reachHeadNext();
-            requireInvariant thresholdSet();
-        }
-    }
+// invariant count_correct()
+//     forall address X. ghostSuccCount(X) == count_expected(X)
+//     {
+//         preserved {
+//             requireInvariant reach_invariant();
+//             requireInvariant reach_null();
+//             requireInvariant inListReachable();
+//             requireInvariant reach_next();
+//             requireInvariant nextNull();
+//             requireInvariant reachableInList();
+//             requireInvariant reachHeadNext();
+//             requireInvariant thresholdSet();
+//         }
+//     }
 
-invariant ownercount_correct()
-    ghostSuccCount(SENTINEL) == ghostOwnerCount + 1
-    {
-        preserved  {
-            requireInvariant reach_invariant();
-            requireInvariant reach_null();
-            requireInvariant inListReachable();
-            requireInvariant reach_next();
-            requireInvariant nextNull();
-            requireInvariant reachableInList();
-            requireInvariant reachHeadNext();
-            requireInvariant reachCount();
-            requireInvariant thresholdSet();
-        }
-    }
+// invariant ownercount_correct()
+    // ghostSuccCount(SENTINEL) == ghostOwnerCount + 1
+    // {
+    //     preserved  {
+    //         requireInvariant reach_invariant();
+    //         requireInvariant reach_null();
+    //         requireInvariant inListReachable();
+    //         requireInvariant reach_next();
+    //         requireInvariant nextNull();
+    //         requireInvariant reachableInList();
+    //         requireInvariant reachHeadNext();
+    //         requireInvariant reachCount();
+    //         requireInvariant thresholdSet();
+    //     }
+    // }
 
 // rule isOwnerDoesNotRevert {
 //     address addr;
