@@ -137,6 +137,7 @@ rule duplicateSignersRevert(env e) {
     require signatures[i1].signer == signatures[i2].signer;
 
     multiConfirmRecovery@withrevert(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
+    bool multiConfirmReverted = lastReverted;
 
-    assert lastReverted, "Duplicate signers should revert";
+    assert multiConfirmReverted, "Duplicate signers should revert";
 }
