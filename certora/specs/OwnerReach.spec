@@ -34,7 +34,7 @@ methods {
     function safeContract.getThreshold() external returns (uint256) envfree;
 
     // Wildcard Functions
-    function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external => DISPATCHER(true);
+    function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external with (env e) => summarizeSafeExecTransactionFromModule(calledContract, e, to, value, data, operation) expect bool ALL;
     function _.isModuleEnabled(address module) external => DISPATCHER(false);
     function _.isOwner(address owner) external => DISPATCHER(false);
     function _.getOwners() external => DISPATCHER(false);
@@ -69,6 +69,14 @@ persistent ghost address SENTINEL {
 
 persistent ghost address NULL {
     axiom to_mathint(NULL) == 0;
+}
+
+// A summary function that helps the prover resolve calls to `safeContract`.
+function summarizeSafeExecTransactionFromModule(address callee, env e, address to, uint256 value, bytes data, Enum.Operation operation) returns bool {
+    if (callee == safeContract) {
+        return safeContract.execTransactionFromModule(e, to, value, data, operation);
+    }
+    return _;
 }
 
 invariant thresholdSet() safeContract.getThreshold() > 0  && safeContract.getThreshold() <= ghostOwnerCount
