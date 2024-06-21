@@ -26,7 +26,10 @@ methods {
     function _.isModuleEnabled(address module) external => DISPATCHER(false);
     function _.isOwner(address owner) external => DISPATCHER(false);
     function _.getOwners() external => DISPATCHER(false);
-    function _._ external => DISPATCH[] default NONDET;
+    // function _._ external => DISPATCH[safeContract._] default NONDET;
+    function _._ external => DISPATCH[safeContract.removeOwner(address,address,uint256),
+                            safeContract.addOwnerWithThreshold(address,uint256),
+                            safeContract.swapOwner(address,address,address)] default NONDET;
 }
 
 ghost mapping(address => mathint) ghostNewThreshold {
@@ -502,3 +505,72 @@ rule finalizeRecoveryAlwaysPossible(env e) {
 
     assert !isReverted, "legitimate recovery finalization reverted";
 }
+// persistent ghost mapping(address => address) ghostOwners {
+//     init_state axiom forall address X. to_mathint(ghostOwners[X]) == 0;
+// }
+
+// // hook to update the ghostOwners and the reach ghost state whenever the owners field
+// // in storage is written.
+// // This also checks that the reach_succ invariant is preserved.
+// hook Sstore safeContract.owners[KEY address key] address value {
+//     ghostOwners[key] = value;
+// }
+
+// // The rule verifies that after recovery finalisation, the ownership of the Safe changes.
+// rule recoveryFinalisation(env e, address[] newOwners) {
+//     requireInitiatedRecovery(safeContract);
+
+//     requireInvariant reach_null();
+//     requireInvariant reach_invariant();
+//     requireInvariant inListReachable();
+//     requireInvariant reachableInList();
+
+//     address[] ownersBefore = safeContract.getOwners();
+//     // y represents any arbitrary index of ownersBefore[].
+//     uint256 y;
+//     // x represents any arbitrary index of newOwners[].
+//     uint256 x;
+
+//     require safeContract.getThreshold() <= ownersBefore.length;
+
+//     uint256 newThreshold = currentContract.recoveryRequests[safeContract].newThreshold;
+//     require newThreshold > 0 && newThreshold <= newOwners.length;
+
+//     uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
+//     require newOwnersCount == newOwners.length;
+//     require x < newOwnersCount;
+//     require newOwners[x] == currentContract.recoveryRequests[safeContract].newOwners[x];
+
+//     // uint256 m;
+//     // require m < newOwnersCount;
+//     require forall uint256 m. m < newOwnersCount => ghostOwners[newOwners[m]] == 0;
+//     // require forall uint256 p. forall uint256 q. (p < newOwnersCount && q < ownersBefore.length) => newOwners[p] != ownersBefore[q];
+
+//     require ownersBefore.length > 0;
+//     require y < ownersBefore.length;
+//     require ownersBefore[y] != 0 && ownersBefore[y] != 1;
+
+//     uint256 y2;
+//     require y2 < ownersBefore.length;
+//     uint256 x2;
+//     require x2 < newOwnersCount;
+//     address possibleOwner;
+//     require newOwners[x2] != ownersBefore[y2];
+    
+//     finalizeRecovery@withrevert(e, safeContract);
+//     bool success = !lastReverted;
+
+//     uint256 x3;
+//     require x3 < newOwnersCount;
+//     address[] ownersAfter = safeContract.getOwners();
+//     assert success => ownersAfter.length == newOwnersCount;
+
+//     assert success => ghostOwners[newOwners[x3]] !=0;
+//            // safeContract.getThreshold() == newThreshold;
+
+//     // uint256 y1;
+//     // uint256 x1;
+//     // require y1 < ownersBefore.length;
+//     // require possibleOwner == ownersBefore[y1];
+//     // assert success => safeContract.isOwner(possibleOwner) => (exists uint256 i. (i <= newOwners.length && newOwners[i] == possibleOwner));
+// }
