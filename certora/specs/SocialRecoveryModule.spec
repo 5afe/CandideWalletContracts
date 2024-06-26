@@ -512,14 +512,14 @@ rule finalizeRecoveryAlwaysPossible(env e) {
 // - cancelRecovery(...)
 // Each of these either updates or deletes the recovery request.
 rule recoveryRequestsChange(method f) {
-    env e;
-    calldataarg args;
     uint i;
     uint256 guardianApprovalCountBefore = currentContract.recoveryRequests[safeContract].guardiansApprovalCount;
     uint256 newThresholdBefore = currentContract.recoveryRequests[safeContract].newThreshold;
     uint64 executeAfterBefore = currentContract.recoveryRequests[safeContract].executeAfter;
     address newOwnersBefore = currentContract.recoveryRequests[safeContract].newOwners[i];
 
+    env e;
+    calldataarg args;
     f(e, args);
 
     uint256 guardianApprovalCountAfter = currentContract.recoveryRequests[safeContract].guardiansApprovalCount;
@@ -544,10 +544,10 @@ rule recoveryRequestsChange(method f) {
 // - confirmRecovery(...)
 // - multiConfirmRecovery(...)
 rule confirmedHashesChange(method f, bytes32 hash, address guardian) {
-    env e;
-    calldataarg args;
     bool confirmedHashBefore = currentContract.confirmedHashes[hash][guardian];
 
+    env e;
+    calldataarg args;
     f(e, args);
 
     bool confirmedHashAfter = currentContract.confirmedHashes[hash][guardian];
@@ -563,10 +563,10 @@ rule confirmedHashesChange(method f, bytes32 hash, address guardian) {
 // - executeRecovery(...)
 // - invalidateNonce(...)
 rule walletsNoncesChange(method f) {
-    env e;
-    calldataarg args;
     uint256 walletsNoncesBefore = currentContract.walletsNonces[safeContract];
 
+    env e;
+    calldataarg args;
     f(e, args);
 
     uint256 walletsNoncesAfter = currentContract.walletsNonces[safeContract];
@@ -580,10 +580,10 @@ rule walletsNoncesChange(method f) {
 
 // This rule verifies that the recovery period never changes.
 rule recoveryPeriodNeverChange(method f) {
-    env e;
-    calldataarg args;
     uint256 recoveryPeriodBefore = currentContract.recoveryPeriod;
 
+    env e;
+    calldataarg args;
     f(e, args);
 
     uint256 recoveryPeriodAfter = currentContract.recoveryPeriod;
@@ -596,12 +596,12 @@ rule recoveryPeriodNeverChange(method f) {
 // - revokeGuardianWithThreshold(...)
 // - changeThreshold(...)
 rule entriesChange(method f) {
-    env e;
-    calldataarg args;
     bytes32 guardiansHashBefore = currentContract.guardiansHash(safeContract);
     uint256 guardiansCountBefore = currentContract.guardiansCount(safeContract);
     uint256 guardianThresholdBefore = currentContract.threshold(safeContract);
 
+    env e;
+    calldataarg args;
     f(e, args);
 
     bytes32 guardiansHashAfter = currentContract.guardiansHash(safeContract);
