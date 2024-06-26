@@ -591,14 +591,12 @@ rule recoveryPeriodNeverChange(method f) {
     assert recoveryPeriodBefore == recoveryPeriodAfter;
 }
 
-// This rule verifies that the guardian data can only be changed by the following functions:
+// This rule verifies that the guardians list and count can only be changed by the following functions:
 // - addGuardianWithThreshold(...)
 // - revokeGuardianWithThreshold(...)
-// - changeThreshold(...)
-rule entriesChange(method f) {
+rule guardiansListAndCountChange(method f) {
     bytes32 guardiansHashBefore = currentContract.guardiansHash(safeContract);
     uint256 guardiansCountBefore = currentContract.guardiansCount(safeContract);
-    uint256 guardianThresholdBefore = currentContract.threshold(safeContract);
 
     env e;
     calldataarg args;
@@ -606,7 +604,6 @@ rule entriesChange(method f) {
 
     bytes32 guardiansHashAfter = currentContract.guardiansHash(safeContract);
     uint256 guardiansCountAfter = currentContract.guardiansCount(safeContract);
-    uint256 guardianThresholdAfter = currentContract.threshold(safeContract);
 
     assert (
         guardiansHashBefore != guardiansHashAfter ||
@@ -614,6 +611,21 @@ rule entriesChange(method f) {
     ) =>
         f.selector == sig:addGuardianWithThreshold(address,uint256).selector ||
         f.selector == sig:revokeGuardianWithThreshold(address,address,uint256).selector;
+}
+
+// This rule verifies that the guardian threshold can only be changed by the following functions:
+// - addGuardianWithThreshold(...)
+// - revokeGuardianWithThreshold(...)
+// - changeThreshold(...)
+rule guardiansThresholdChange(method f) {
+    uint256 guardianThresholdBefore = currentContract.threshold(safeContract);
+
+    env e;
+    calldataarg args;
+    f(e, args);
+
+    uint256 guardianThresholdAfter = currentContract.threshold(safeContract);
+
     assert guardianThresholdBefore != guardianThresholdAfter =>
         f.selector == sig:addGuardianWithThreshold(address,uint256).selector ||
         f.selector == sig:revokeGuardianWithThreshold(address,address,uint256).selector ||
