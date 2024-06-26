@@ -511,7 +511,9 @@ rule finalizeRecoveryAlwaysPossible(env e) {
 // - finalizeRecovery(...)
 // - cancelRecovery(...)
 // Each of these either updates or deletes the recovery request.
-rule recoveryRequestsChange(env e, calldataarg args, method f) {
+rule recoveryRequestsChange(method f) {
+    env e;
+    calldataarg args;
     uint i;
     uint256 guardianApprovalCountBefore = currentContract.recoveryRequests[safeContract].guardiansApprovalCount;
     uint256 newThresholdBefore = currentContract.recoveryRequests[safeContract].newThreshold;
@@ -530,7 +532,7 @@ rule recoveryRequestsChange(env e, calldataarg args, method f) {
         newThresholdBefore != newThresholdAfter ||
         executeAfterBefore != executeAfterAfter ||
         newOwnersBefore != newOwnersAfter
-        ) =>
+    ) =>
         f.selector == sig:confirmRecovery(address,address[],uint256,bool).selector ||
         f.selector == sig:multiConfirmRecovery(address,address[],uint256,SocialRecoveryModule.SignatureData[],bool).selector ||
         f.selector == sig:executeRecovery(address,address[],uint256).selector ||
@@ -541,7 +543,9 @@ rule recoveryRequestsChange(env e, calldataarg args, method f) {
 // This rule verifies that is the confirmedHashes change, it must be one of the following functions:
 // - confirmRecovery(...)
 // - multiConfirmRecovery(...)
-rule confirmedHashesChange(env e, calldataarg args, method f, bytes32 hash, address guardian) {
+rule confirmedHashesChange(method f, bytes32 hash, address guardian) {
+    env e;
+    calldataarg args;
     bool confirmedHashBefore = currentContract.confirmedHashes[hash][guardian];
 
     f(e, args);
@@ -558,7 +562,9 @@ rule confirmedHashesChange(env e, calldataarg args, method f, bytes32 hash, addr
 // - multiConfirmRecovery(...)
 // - executeRecovery(...)
 // - invalidateNonce(...)
-rule walletsNoncesChange(env e, calldataarg args, method f) {
+rule walletsNoncesChange(method f) {
+    env e;
+    calldataarg args;
     uint256 walletsNoncesBefore = currentContract.walletsNonces[safeContract];
 
     f(e, args);
@@ -573,7 +579,9 @@ rule walletsNoncesChange(env e, calldataarg args, method f) {
 }
 
 // This rule verifies that the recovery period never changes.
-rule recoveryPeriodNeverChange(env e, calldataarg args, method f) {
+rule recoveryPeriodNeverChange(method f) {
+    env e;
+    calldataarg args;
     uint256 recoveryPeriodBefore = currentContract.recoveryPeriod;
 
     f(e, args);
@@ -587,7 +595,9 @@ rule recoveryPeriodNeverChange(env e, calldataarg args, method f) {
 // - addGuardianWithThreshold(...)
 // - revokeGuardianWithThreshold(...)
 // - changeThreshold(...)
-rule entriesChange(env e, calldataarg args, method f) {
+rule entriesChange(method f) {
+    env e;
+    calldataarg args;
     bytes32 guardiansHashBefore = currentContract.guardiansHash(safeContract);
     uint256 guardiansCountBefore = currentContract.guardiansCount(safeContract);
     uint256 guardianThresholdBefore = currentContract.threshold(safeContract);
@@ -602,14 +612,10 @@ rule entriesChange(env e, calldataarg args, method f) {
         guardiansHashBefore != guardiansHashAfter ||
         guardiansCountBefore != guardiansCountAfter
     ) =>
-    (
         f.selector == sig:addGuardianWithThreshold(address,uint256).selector ||
-        f.selector == sig:revokeGuardianWithThreshold(address,address,uint256).selector
-    );
+        f.selector == sig:revokeGuardianWithThreshold(address,address,uint256).selector;
     assert guardianThresholdBefore != guardianThresholdAfter =>
-    (
         f.selector == sig:addGuardianWithThreshold(address,uint256).selector ||
         f.selector == sig:revokeGuardianWithThreshold(address,address,uint256).selector ||
-        f.selector == sig:changeThreshold(uint256).selector
-    );
+        f.selector == sig:changeThreshold(uint256).selector;
 }
