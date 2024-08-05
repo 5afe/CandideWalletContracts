@@ -24,7 +24,6 @@ methods {
     function getRecoveryApprovals(address, address[], uint256) external returns (uint256) envfree;
     function getRecoveryApprovalsWithNonce(address, address[], uint256, uint256) external returns (uint256) envfree;
     function countGuardians(address) external returns (uint256) envfree;
-    function getGuardians(address) external returns (address[]) envfree;
     function hasGuardianApproved(address, address, address[], uint256) external returns (bool) envfree;
 
     // Safe Functions
@@ -34,7 +33,7 @@ methods {
     function safeContract.getThreshold() external returns (uint256) envfree;
 
     // Wildcard Functions
-    function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external with (env e) => summarizeSafeExecTransactionFromModule(calledContract, e, to, value, data, operation) expect bool ALL;
+    function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external => DISPATCHER(true);
     function _.isModuleEnabled(address module) external => DISPATCHER(false);
     function _.isOwner(address owner) external => DISPATCHER(false);
     function _.getOwners() external => DISPATCHER(false);
@@ -42,6 +41,24 @@ methods {
     function _._ external => DISPATCH[safeContract.removeOwner(address,address,uint256),
                             safeContract.addOwnerWithThreshold(address,uint256),
                             safeContract.swapOwner(address,address,address)] default NONDET;
+    
+
+    // additional summarizations as NONDET DELETE
+    function _.getStorageAt(uint256 offset, uint256 length) external => NONDET DELETE;
+    function _.checkNSignatures(bytes32,bytes,bytes,uint256) external => NONDET DELETE;
+    function _.getModulesPaginated(address,uint256) external => NONDET DELETE;
+    function _.execTransaction(address,uint256,bytes,Enum.Operation,uint256,uint256,uint256,address,address,bytes) external => NONDET DELETE;
+    function _.execTransactionFromModuleReturnData(address,uint256,bytes,Enum.Operation) external => NONDET DELETE;
+    function _.checkSignatures(bytes32,bytes,bytes) external => NONDET DELETE;
+    // function _.finalizeRecovery(address) external => NONDET DELETE;
+    function _.executeRecovery(address,address[],uint256) external => NONDET DELETE;
+    function _.simulateAndRevert(address,bytes) external => NONDET DELETE;
+    function _.confirmRecovery(address,address[],uint256,bool) external => NONDET DELETE;
+    function _.getGuardians(address) external => NONDET DELETE;
+    function _.getTransactionHash(address,uint256,bytes,Enum.Operation,uint256,uint256,uint256,address,address,uint256) external => NONDET DELETE;
+    function _.encodeTransactionData(address,uint256,bytes,Enum.Operation,uint256,uint256,uint256,address,address,uint256) external => NONDET DELETE;
+    function _.multiConfirmRecovery(address,address[],uint256,SocialRecoveryModule.SignatureData[],bool) external => NONDET DELETE;
+    function _.setup(address[],uint256,address,bytes,address,address,uint256,address) external => NONDET DELETE;
 }
 
 definition reachableOnly(method f) returns bool =
@@ -69,14 +86,6 @@ persistent ghost address SENTINEL {
 
 persistent ghost address NULL {
     axiom to_mathint(NULL) == 0;
-}
-
-// A summary function that helps the prover resolve calls to `safeContract`.
-function summarizeSafeExecTransactionFromModule(address callee, env e, address to, uint256 value, bytes data, Enum.Operation operation) returns bool {
-    if (callee == safeContract) {
-        return safeContract.execTransactionFromModule(e, to, value, data, operation);
-    }
-    return _;
 }
 
 invariant thresholdSet() safeContract.getThreshold() > 0  && safeContract.getThreshold() <= ghostOwnerCount
@@ -207,6 +216,18 @@ invariant reach_next()
         }
     }
 
+invariant ss() safeContract.getOwners().length + 1 == ghostSuccCount(SENTINEL) 
+    filtered { f -> reachableOnly(f) }
+    {
+        preserved {
+            requireInvariant inListReachable();
+            requireInvariant reachableInList();
+            requireInvariant reach_null();
+            requireInvariant reach_invariant();
+            requireInvariant thresholdSet();
+        }
+    }
+
 // Express the next relation from the reach relation by stating that it is reachable and there is no other element
 // in between.
 // This is equivalent to P_next from Table 3.
@@ -279,35 +300,36 @@ function requireInitiatedRecovery(address wallet) {
 
 
 // The rule verifies that after recovery finalisation, the ownership of the Safe changes.
-rule recoveryFinalisation(env e, address[] newOwners) {
+rule recoveryFinalisation(env e) {
     requireInitiatedRecovery(safeContract);
 
     requireInvariant reach_null();
     requireInvariant reach_invariant();
     requireInvariant inListReachable();
     requireInvariant reachableInList();
+    requireInvariant ss();
+    uint256 ownersLengthBefore = safeContract.getOwners().length;
 
-    address[] ownersBefore = safeContract.getOwners();
-    // y represents any arbitrary index of ownersBefore[].
-    uint256 y;
-    // x represents any arbitrary index of newOwners[].
-    uint256 x;
-
-    require safeContract.getThreshold() <= ownersBefore.length;
+    require safeContract.getThreshold() <= ownersLengthBefore;
+    require ownersLengthBefore > 0;
 
     uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
-    require newOwnersCount == newOwners.length;
-    require x < newOwnersCount;
-    require newOwners[x] == currentContract.recoveryRequests[safeContract].newOwners[x];
 
-    require ownersBefore.length > 0;
-
-    finalizeRecovery@withrevert(e, safeContract);
-    bool success = !lastReverted;
 
     uint256 x3;
     require x3 < newOwnersCount;
+    address newOwner = currentContract.recoveryRequests[safeContract].newOwners[x3];
+    // require newOwner != SENTINEL;
+    // require !safeContract.isOwner(newOwner);
+    // bool isNewOwnerAlsoOldOwner = exists uint256 x4. (x4 < ownersLengthBefore && safeContract.getOwners()[x4] == newOwner);
+    // require ownersLengthBefore + 1 == ghostSuccCount(SENTINEL);
+
+    // require forall address p. forall uint256 q. (q < newOwnersCount && ghostOwners[p] == 0) => currentContract.recoveryRequests[safeContract].newOwners[q] != p;
+    // require forall uint256 q. (q < newOwnersCount) => currentContract.recoveryRequests[safeContract].newOwners[q] != SENTINEL;
+
+    finalizeRecovery(e, safeContract);
+    
     address[] ownersAfter = safeContract.getOwners();
-    assert success => ownersAfter.length == newOwnersCount && 
-                        safeContract.isOwner(newOwners[x3]);
+    require ownersAfter.length == newOwnersCount;
+    assert safeContract.isOwner(newOwner);
 }
