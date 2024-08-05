@@ -63,7 +63,7 @@ rule multiConfirmRecoveryOnlyWithLegitimateSignatures(env e) {
     checkSignatures@withrevert(e, _wallet, recoveryHash, signatures);
     bool signatureCheckSuccess = !lastReverted;
 
-    multiConfirmRecovery(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
+    multiConfirmRecovery@withrevert(e, _wallet, _newOwners, _newThreshold, signatures, _execute);
     bool multiConfirmRecoverySuccess = !lastReverted;
 
     assert signatureCheckSuccess <=> multiConfirmRecoverySuccess, "Recovery confirmed with invalid signatures";
