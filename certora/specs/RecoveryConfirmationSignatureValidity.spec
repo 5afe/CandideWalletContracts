@@ -4,29 +4,12 @@ methods {
     // Social Recovery Module Functions
     function nonce(address) external returns (uint256) envfree;
     function isGuardian(address, address) external returns (bool) envfree;
-    function compareByteArrays(bytes, bytes) external returns (bool) envfree;
 
     // Social Recovery Module Summaries
     function getRecoveryHash(address, address[] calldata, uint256, uint256) internal returns (bytes32) => CONSTANT;
     // The prover analysis fails in functions with heavy use of assembly code,
     // so we're summarizing the `isValidSignatureNow` function with a ghost function to avoid this issue and timeouts
     function SignatureChecker.isValidSignatureNow(address signer, bytes32 dataHash, bytes memory signature) internal returns (bool) => isValidSignatureNowSummary(signer, dataHash, signature);
-
-    // Wildcard Functions
-    function _.execTransactionFromModule(address to, uint256 value, bytes data, Enum.Operation operation) external with (env e) => summarizeSafeExecTransactionFromModule(calledContract, e, to, value, data, operation) expect bool ALL;
-    function _.isModuleEnabled(address module) external => DISPATCHER(false);
-    function _.isOwner(address owner) external => DISPATCHER(false);
-    function _.getOwners() external => DISPATCHER(false);
-    function _._ external => DISPATCH[] default NONDET;
-}
-
-
-// A summary function that helps the prover resolve calls to `safeContract`.
-function summarizeSafeExecTransactionFromModule(address callee, env e, address to, uint256 value, bytes data, Enum.Operation operation) returns bool {
-    if (callee == safeContract) {
-        return safeContract.execTransactionFromModule(e, to, value, data, operation);
-    }
-    return _;
 }
 
 // The prover analysis fails in functions with heavy use of assembly code,

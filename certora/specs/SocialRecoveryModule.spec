@@ -14,6 +14,7 @@ methods {
     function countGuardians(address) external returns (uint256) envfree;
     function getGuardians(address) external returns (address[]) envfree;
     function hasGuardianApproved(address, address, address[], uint256) external returns (bool) envfree;
+    function guardiansHash(address) external returns (bytes32) envfree;
 
     // Safe Functions
     function safeContract.isModuleEnabled(address module) external returns (bool) envfree;
@@ -26,10 +27,7 @@ methods {
     function _.isModuleEnabled(address module) external => DISPATCHER(false);
     function _.isOwner(address owner) external => DISPATCHER(false);
     function _.getOwners() external => DISPATCHER(false);
-    // function _._ external => DISPATCH[safeContract._] default NONDET;
-    function _._ external => DISPATCH[safeContract.removeOwner(address,address,uint256),
-                            safeContract.addOwnerWithThreshold(address,uint256),
-                            safeContract.swapOwner(address,address,address)] default NONDET;
+    function _._ external => DISPATCH[] default NONDET;
 }
 
 ghost mapping(address => mathint) ghostNewThreshold {
@@ -50,14 +48,6 @@ hook Sload uint256 value recoveryRequests[KEY address account].newOwners.length 
 }
 hook Sstore recoveryRequests[KEY address account].newOwners.length uint256 value {
     ghostNewOwnersLength[account] = value;
-}
-
-// A summary function that helps the prover resolve calls to `safeContract`.
-function summarizeSafeExecTransactionFromModule(address callee, env e, address to, uint256 value, bytes data, Enum.Operation operation) returns bool {
-    if (callee == safeContract) {
-        return safeContract.execTransactionFromModule(e, to, value, data, operation);
-    }
-    return _;
 }
 
 // A setup function that requires Safe contract to enable the Social Recovery Module.
@@ -444,6 +434,7 @@ rule finalizeRecovery(env e) {
     assert success => require_uint64(e.block.timestamp) >= executeAfter;
     assert !success =>
         safeContract.getOwners().length == 0 ||
+        !safeContract.isModuleEnabled(currentContract) ||
         currentContract.walletsNonces[safeContract] == 0 ||
         executeAfter == 0 ||
         e.msg.value != 0 ||
@@ -505,78 +496,138 @@ rule finalizeRecoveryAlwaysPossible(env e) {
     require e.msg.value == 0;
     require require_uint64(e.block.timestamp) >= executeAfter;
     require executeAfter > 0;
+    require safeContract.isModuleEnabled(currentContract);
 
     currentContract.finalizeRecovery@withrevert(e, safeContract);
     bool isReverted = lastReverted;
 
     assert !isReverted, "legitimate recovery finalization reverted";
 }
-// persistent ghost mapping(address => address) ghostOwners {
-//     init_state axiom forall address X. to_mathint(ghostOwners[X]) == 0;
-// }
 
-// // hook to update the ghostOwners and the reach ghost state whenever the owners field
-// // in storage is written.
-// // This also checks that the reach_succ invariant is preserved.
-// hook Sstore safeContract.owners[KEY address key] address value {
-//     ghostOwners[key] = value;
-// }
+// This rule verifies that if recovery request data is changed, it must be one of the following functions:
+// - confirmRecovery(...)
+// - multiConfirmRecovery(...)
+// - executeRecovery(...)
+// - finalizeRecovery(...)
+// - cancelRecovery(...)
+// Each of these either updates or deletes the recovery request.
+rule recoveryRequestsChange(method f) {
+    uint i;
+    uint256 guardianApprovalCountBefore = currentContract.recoveryRequests[safeContract].guardiansApprovalCount;
+    uint256 newThresholdBefore = currentContract.recoveryRequests[safeContract].newThreshold;
+    uint64 executeAfterBefore = currentContract.recoveryRequests[safeContract].executeAfter;
+    address newOwnersBefore = currentContract.recoveryRequests[safeContract].newOwners[i];
 
-// The rule verifies that after recovery finalisation, the ownership of the Safe changes.
-rule recoveryFinalisation(env e, address[] newOwners) {
-    requireInitiatedRecovery(safeContract);
+    env e;
+    calldataarg args;
+    f(e, args);
 
-    // requireInvariant reach_null();
-    // requireInvariant reach_invariant();
-    // requireInvariant inListReachable();
-    // requireInvariant reachableInList();
+    uint256 guardianApprovalCountAfter = currentContract.recoveryRequests[safeContract].guardiansApprovalCount;
+    uint256 newThresholdAfter = currentContract.recoveryRequests[safeContract].newThreshold;
+    uint64 executeAfterAfter = currentContract.recoveryRequests[safeContract].executeAfter;
+    address newOwnersAfter = currentContract.recoveryRequests[safeContract].newOwners[i];
 
-    address[] ownersBefore = safeContract.getOwners();
-    // y represents any arbitrary index of ownersBefore[].
-    uint256 y;
-    // x represents any arbitrary index of newOwners[].
-    uint256 x;
+    assert (
+        guardianApprovalCountBefore != guardianApprovalCountAfter ||
+        newThresholdBefore != newThresholdAfter ||
+        executeAfterBefore != executeAfterAfter ||
+        newOwnersBefore != newOwnersAfter
+    ) =>
+        f.selector == sig:confirmRecovery(address,address[],uint256,bool).selector ||
+        f.selector == sig:multiConfirmRecovery(address,address[],uint256,SocialRecoveryModule.SignatureData[],bool).selector ||
+        f.selector == sig:executeRecovery(address,address[],uint256).selector ||
+        f.selector == sig:finalizeRecovery(address).selector ||
+        f.selector == sig:cancelRecovery().selector;
+}
 
-    require safeContract.getThreshold() <= ownersBefore.length;
+// This rule verifies that is the confirmedHashes change, it must be one of the following functions:
+// - confirmRecovery(...)
+// - multiConfirmRecovery(...)
+rule confirmedHashesChange(method f, bytes32 hash, address guardian) {
+    bool confirmedHashBefore = currentContract.confirmedHashes[hash][guardian];
 
-    uint256 newThreshold = currentContract.recoveryRequests[safeContract].newThreshold;
-    require newThreshold > 0 && newThreshold <= newOwners.length;
+    env e;
+    calldataarg args;
+    f(e, args);
 
-    uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
-    require newOwnersCount == newOwners.length;
-    require x < newOwnersCount;
-    require newOwners[x] == currentContract.recoveryRequests[safeContract].newOwners[x];
+    bool confirmedHashAfter = currentContract.confirmedHashes[hash][guardian];
 
-    // uint256 m;
-    // require m < newOwnersCount;
-    // require forall uint256 m. m < newOwnersCount => ghostOwners[newOwners[m]] == 0;
-    require forall uint256 p. forall uint256 q. (p < newOwnersCount && q < ownersBefore.length) => newOwners[p] != ownersBefore[q];
+    assert confirmedHashBefore != confirmedHashAfter =>
+        f.selector == sig:confirmRecovery(address,address[],uint256,bool).selector ||
+        f.selector == sig:multiConfirmRecovery(address,address[],uint256,SocialRecoveryModule.SignatureData[],bool).selector;
+}
 
-    require ownersBefore.length > 0;
-    require y < ownersBefore.length;
-    require ownersBefore[y] != 0 && ownersBefore[y] != 1;
+// This rule verifies that is the walletsNonces change, it must be one of the following functions:
+// - confirmRecovery(...)
+// - multiConfirmRecovery(...)
+// - executeRecovery(...)
+// - invalidateNonce(...)
+rule walletsNoncesChange(method f) {
+    uint256 walletsNoncesBefore = currentContract.walletsNonces[safeContract];
 
-    uint256 y2;
-    require y2 < ownersBefore.length;
-    uint256 x2;
-    require x2 < newOwnersCount;
-    address possibleOwner;
-    require newOwners[x2] != ownersBefore[y2];
-    
-    finalizeRecovery@withrevert(e, safeContract);
-    bool success = !lastReverted;
+    env e;
+    calldataarg args;
+    f(e, args);
 
-    uint256 x3;
-    require x3 < newOwnersCount;
-    address[] ownersAfter = safeContract.getOwners();
-    assert success => ownersAfter.length == newOwnersCount;
+    uint256 walletsNoncesAfter = currentContract.walletsNonces[safeContract];
 
-    // assert success => ghostOwners[newOwners[x3]] != 0;
-    // safeContract.getThreshold() == newThreshold;
+    assert walletsNoncesBefore != walletsNoncesAfter =>
+        f.selector == sig:confirmRecovery(address,address[],uint256,bool).selector ||
+        f.selector == sig:multiConfirmRecovery(address,address[],uint256,SocialRecoveryModule.SignatureData[],bool).selector ||
+        f.selector == sig:executeRecovery(address,address[],uint256).selector ||
+        f.selector == sig:invalidateNonce().selector;
+}
 
-    uint256 y1;
-    uint256 x1;
-    require y1 < ownersBefore.length;
-    require possibleOwner == ownersBefore[y1];
-    assert success => safeContract.isOwner(possibleOwner) => (exists uint256 i. (i <= newOwners.length && newOwners[i] == possibleOwner));
+// This rule verifies that the recovery period never changes.
+rule recoveryPeriodNeverChange(method f) {
+    uint256 recoveryPeriodBefore = currentContract.recoveryPeriod;
+
+    env e;
+    calldataarg args;
+    f(e, args);
+
+    uint256 recoveryPeriodAfter = currentContract.recoveryPeriod;
+
+    assert recoveryPeriodBefore == recoveryPeriodAfter;
+}
+
+// This rule verifies that the guardians list and count can only be changed by the following functions:
+// - addGuardianWithThreshold(...)
+// - revokeGuardianWithThreshold(...)
+rule guardiansListAndCountChange(method f) {
+    bytes32 guardiansHashBefore = currentContract.guardiansHash(safeContract);
+    uint256 guardiansCountBefore = currentContract.guardiansCount(safeContract);
+
+    env e;
+    calldataarg args;
+    f(e, args);
+
+    bytes32 guardiansHashAfter = currentContract.guardiansHash(safeContract);
+    uint256 guardiansCountAfter = currentContract.guardiansCount(safeContract);
+
+    assert (
+        guardiansHashBefore != guardiansHashAfter ||
+        guardiansCountBefore != guardiansCountAfter
+    ) =>
+        f.selector == sig:addGuardianWithThreshold(address,uint256).selector ||
+        f.selector == sig:revokeGuardianWithThreshold(address,address,uint256).selector;
+}
+
+// This rule verifies that the guardian threshold can only be changed by the following functions:
+// - addGuardianWithThreshold(...)
+// - revokeGuardianWithThreshold(...)
+// - changeThreshold(...)
+rule guardiansThresholdChange(method f) {
+    uint256 guardianThresholdBefore = currentContract.threshold(safeContract);
+
+    env e;
+    calldataarg args;
+    f(e, args);
+
+    uint256 guardianThresholdAfter = currentContract.threshold(safeContract);
+
+    assert guardianThresholdBefore != guardianThresholdAfter =>
+        f.selector == sig:addGuardianWithThreshold(address,uint256).selector ||
+        f.selector == sig:revokeGuardianWithThreshold(address,address,uint256).selector ||
+        f.selector == sig:changeThreshold(uint256).selector;
 }
