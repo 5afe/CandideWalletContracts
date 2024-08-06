@@ -216,7 +216,7 @@ invariant reach_next()
         }
     }
 
-invariant ss() safeContract.getOwners().length + 1 == ghostSuccCount(SENTINEL) 
+invariant ownerCountEqualsSentinelSuccessor() safeContract.getOwners().length + 1 == ghostSuccCount(SENTINEL) 
     filtered { f -> reachableOnly(f) }
     {
         preserved {
@@ -307,7 +307,7 @@ rule recoveryFinalisation(env e) {
     requireInvariant reach_invariant();
     requireInvariant inListReachable();
     requireInvariant reachableInList();
-    requireInvariant ss();
+    requireInvariant ownerCountEqualsSentinelSuccessor();
     uint256 ownersLengthBefore = safeContract.getOwners().length;
 
     require safeContract.getThreshold() <= ownersLengthBefore;
@@ -315,17 +315,9 @@ rule recoveryFinalisation(env e) {
 
     uint256 newOwnersCount = currentContract.recoveryRequests[safeContract].newOwners.length;
 
-
     uint256 x3;
     require x3 < newOwnersCount;
     address newOwner = currentContract.recoveryRequests[safeContract].newOwners[x3];
-    // require newOwner != SENTINEL;
-    // require !safeContract.isOwner(newOwner);
-    // bool isNewOwnerAlsoOldOwner = exists uint256 x4. (x4 < ownersLengthBefore && safeContract.getOwners()[x4] == newOwner);
-    // require ownersLengthBefore + 1 == ghostSuccCount(SENTINEL);
-
-    // require forall address p. forall uint256 q. (q < newOwnersCount && ghostOwners[p] == 0) => currentContract.recoveryRequests[safeContract].newOwners[q] != p;
-    // require forall uint256 q. (q < newOwnersCount) => currentContract.recoveryRequests[safeContract].newOwners[q] != SENTINEL;
 
     finalizeRecovery(e, safeContract);
     
