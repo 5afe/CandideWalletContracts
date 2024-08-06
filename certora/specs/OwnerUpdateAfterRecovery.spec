@@ -49,7 +49,6 @@ methods {
     function _.execTransaction(address,uint256,bytes,Enum.Operation,uint256,uint256,uint256,address,address,bytes) external => NONDET DELETE;
     function _.execTransactionFromModuleReturnData(address,uint256,bytes,Enum.Operation) external => NONDET DELETE;
     function _.checkSignatures(bytes32,bytes,bytes) external => NONDET DELETE;
-    // function _.finalizeRecovery(address) external => NONDET DELETE;
     function _.executeRecovery(address,address[],uint256) external => NONDET DELETE;
     function _.simulateAndRevert(address,bytes) external => NONDET DELETE;
     function _.confirmRecovery(address,address[],uint256,bool) external => NONDET DELETE;
