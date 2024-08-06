@@ -37,7 +37,6 @@ methods {
     function _.isModuleEnabled(address module) external => DISPATCHER(false);
     function _.isOwner(address owner) external => DISPATCHER(false);
     function _.getOwners() external => DISPATCHER(false);
-    // function _._ external => DISPATCH[safeContract._] default NONDET;
     function _._ external => DISPATCH[safeContract.removeOwner(address,address,uint256),
                             safeContract.addOwnerWithThreshold(address,uint256),
                             safeContract.swapOwner(address,address,address)] default NONDET;
